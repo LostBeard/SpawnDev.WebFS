@@ -1,0 +1,499 @@
+﻿using DokanNet;
+using System.Security.AccessControl;
+using SpawnDev.WebFS.DokanAsync;
+using FileAccess = DokanNet.FileAccess;
+using FileOptions = System.IO.FileOptions;
+
+namespace SpawnDev.WebFS.Host
+{
+    public class WebFSServer : IAsyncDokanOperations
+    {
+        WebSocketServer WebSocketServer;
+        public string VolumeLabel;
+        IServiceProvider ServiceProvider;
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
+        public WebFSServer(IServiceProvider serviceProvider, string? volumeLabel = null, ushort port = 6565)
+        {
+            ServiceProvider = serviceProvider;
+            VolumeLabel = string.IsNullOrEmpty(volumeLabel) ? GetType().Name : volumeLabel;
+            WebSocketServer = new WebSocketServer(ServiceProvider, port);
+            WebSocketServer.OnConnectRequest += WebSocketServer_OnConnectRequest;
+            WebSocketServer.OnConnected += WebSocketServer_OnConnected;
+            WebSocketServer.OnDisconnected += WebSocketServer_OnDisconnected;
+            WebSocketServer.StartListening();
+        }
+        private void WebSocketServer_OnDisconnected(WebSocketServer sender, WebSocketConnection conn)
+        {
+            Console.WriteLine($"WebSocketServer_OnDisconnected: {conn.ConnectionId}");
+        }
+        private void WebSocketServer_OnConnected(WebSocketServer sender, WebSocketConnection conn)
+        {
+            Console.WriteLine($"WebSocketServer_OnConnected: {conn.ConnectionId} {conn.UserAgent}");
+        }
+        private void WebSocketServer_OnConnectRequest(WebSocketServer sender, ConnectionRequestArgs eventArgs)
+        {
+            var url = eventArgs.Context.Request.Url;
+            var userAgent = eventArgs.Context.Request.UserAgent;
+            var origin = eventArgs.Context.Request.Headers.GetValues("origin")?.FirstOrDefault();
+            Uri? originUri = null;
+            try
+            {
+                originUri = string.IsNullOrEmpty(origin) ? null : new Uri(origin);
+            }
+            catch { }
+            if (originUri == null)
+            {
+                eventArgs.CancelConnection = true;
+            }
+            Console.WriteLine($"WebSocketServer_OnConnectRequest: {eventArgs.ConnectionId} {origin} {url} {userAgent}");
+        }
+        #region IAsyncDokanOperations member
+        bool SendCleanup = true;
+        bool SendCloseFile = true;
+        public async Task Cleanup(string filename, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (SendCleanup)
+                {
+                    try
+                    {
+                        await conn!.Run<WebFSProvider>(s => s.Cleanup(fPath, info));
+                    }
+                    catch (Exception ex)
+                    {
+                    }
+                }
+            }
+        }
+        public async Task CloseFile(string filename, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (SendCloseFile)
+                {
+                    try
+                    {
+                        await conn!.Run<WebFSProvider>(s => s.CloseFile(fPath, info));
+                    }
+                    catch (Exception ex)
+                    {
+                    }
+                }
+            }
+        }
+        public async Task<CreateFileResult> CreateFile(string filename, FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
+        {
+            //if (info.IsDirectory && mode == FileMode.CreateNew) return DokanResult.AccessDenied;
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                try
+                {
+                    var tmp = await conn!.Run<WebFSProvider, CreateFileResult>(s => s.CreateFile(fPath, access, share, mode, options, attributes, info));
+                    if (tmp != null)
+                    {
+                        return tmp;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return DokanResult.Error;
+                }
+            }
+            else if (filename == "\\" && mode == FileMode.Open)
+            {
+                return DokanResult.Success;
+            }
+            return DokanResult.FileNotFound;
+        }
+        public async Task<DokanAsyncResult> DeleteDirectory(string filename, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                try
+                {
+                    var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.DeleteDirectory(fPath, info));
+                    if (tmp != null)
+                    {
+                        return tmp;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return DokanResult.Error;
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> DeleteFile(string filename, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                try
+                {
+                    var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.DeleteFile(fPath, info));
+                    if (tmp != null)
+                    {
+                        return tmp;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return DokanResult.Error;
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> FlushFileBuffers(string filename, AsyncDokanFileInfo info)
+        {
+            return DokanResult.NotImplemented;
+        }
+        bool GetProvider(string filename, out string host, out string path, out WebSocketConnection? conn)
+        {
+            var parts = filename.Split('\\', StringSplitOptions.RemoveEmptyEntries).ToList();
+            if (parts.Count == 0)
+            {
+                host = "";
+                path = "";
+                conn = null;
+            }
+            else
+            {
+                var fHost = parts[0];
+                host = fHost;
+                parts.RemoveAt(0);
+                path = string.Join("/", parts);
+                conn = WebSocketServer.Connections.OrderBy(o => o.WhenConnected).FirstOrDefault(o => o.IsConnected && o.RequestOrigin.Host == fHost);
+            }
+            return conn != null;
+        }
+        public async Task<FindFilesResult> FindFiles(string filename, AsyncDokanFileInfo info)
+        {
+            if (filename == "\\")
+            {
+                var files = new List<FileInformation>();
+                var conns = WebSocketServer.Connections.ToList();
+                var hosts = conns.Select(o => o.RequestOrigin.Host).Distinct().ToList();
+                foreach (var host in hosts)
+                {
+                    var finfo = new FileInformation
+                    {
+                        FileName = host,
+                        Attributes = FileAttributes.Directory,
+                        LastAccessTime = DateTime.Now,
+                        LastWriteTime = null,
+                        CreationTime = null
+                    };
+                    files.Add(finfo);
+                }
+                return new FindFilesResult(DokanResult.Success, files);
+            }
+            else
+            {
+                if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, FindFilesResult>(s => s.FindFiles(fPath, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+                return DokanResult.Error;
+            }
+        }
+        public async Task<FindFilesResult> FindFilesWithPattern(string filename, string searchPattern, AsyncDokanFileInfo info)
+        {
+            //if (filename == "\\")
+            //{
+            //    return DokanResult.NotImplemented;
+            //}
+            //if (GetFilenameParts(filename, out var fHost, out var fPath, out var conn))
+            //{
+            //    if (!string.IsNullOrEmpty(fPath))
+            //    {
+            //        try
+            //        {
+            //            var tmp = await conn!.Run<FSHost, FindFilesResult>(s => s.FindFilesWithPattern(fPath, searchPattern, info));
+            //            if (tmp != null)
+            //            {
+            //                return tmp;
+            //            }
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            return DokanResult.Error;
+            //        }
+            //    }
+            //}
+            return DokanResult.NotImplemented;
+        }
+        public async Task<GetFileInformationResult> GetFileInformation(string filename, AsyncDokanFileInfo info)
+        {
+            if (filename == "\\")
+            {
+                var fileinfo = new FileInformation { FileName = filename };
+                fileinfo.Attributes = FileAttributes.Directory;
+                fileinfo.LastAccessTime = DateTime.Now;
+                fileinfo.LastWriteTime = null;
+                fileinfo.CreationTime = null;
+                return new GetFileInformationResult(DokanResult.Success, fileinfo);
+            }
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (string.IsNullOrEmpty(fPath))
+                {
+
+                    var fileinfo = new FileInformation { FileName = filename };
+                    fileinfo.Attributes = FileAttributes.Directory;
+                    fileinfo.LastAccessTime = DateTime.Now;
+                    fileinfo.LastWriteTime = null;
+                    fileinfo.CreationTime = null;
+                    return new GetFileInformationResult(DokanResult.Success, fileinfo);
+                }
+                else
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, GetFileInformationResult>(s => s.GetFileInformation(fPath, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> LockFile(string filename, long offset, long length, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.LockFile(fPath, offset, length, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> UnlockFile(string filename, long offset, long length, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.UnlockFile(fPath, offset, length, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<ReadFileResult> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, ReadFileResult>(s => s.ReadFile(fPath, offset, maxCount, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<WriteFileResult> WriteFile(string filename, byte[] buffer, long offset, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, WriteFileResult>(s => s.WriteFile(fPath, buffer, offset, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> SetEndOfFile(string filename, long length, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetEndOfFile(fPath, length, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> SetAllocationSize(string filename, long length, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetAllocationSize(fPath, length, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> SetFileAttributes(string filename, FileAttributes attr, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetFileAttributes(fPath, attr, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        public async Task<DokanAsyncResult> SetFileTime(string filename, DateTime? ctime, DateTime? atime, DateTime? mtime, AsyncDokanFileInfo info)
+        {
+            if (GetProvider(filename, out var fHost, out var fPath, out var conn))
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetFileTime(fPath, ctime, atime, mtime, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            return DokanResult.Error;
+        }
+        #region Unsupported
+        public async Task<DokanAsyncResult> MoveFile(string filename, string newname, bool replace, AsyncDokanFileInfo info)
+        {
+            // TODO
+            // check the hsots of both paths
+            // if they are the same, send the move event to that host and let it handle it,
+            // otherwise, manually copy the file ...
+            return DokanResult.NotImplemented;
+        }
+        public async Task<GetFileSecurityResult> GetFileSecurity(string filename, AccessControlSections sections, AsyncDokanFileInfo info)
+        {
+            return DokanResult.NotImplemented;
+        }
+        public async Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurity security, AccessControlSections sections, AsyncDokanFileInfo info)
+        {
+            return DokanResult.NotImplemented;
+        }
+        public async Task<FindStreamsResult> FindStreams(string filename, AsyncDokanFileInfo info)
+        {
+            return DokanResult.NotImplemented;
+        }
+        #endregion
+        #region Drive Ops
+        public async Task<GetVolumeInformationResult> GetVolumeInformation(AsyncDokanFileInfo info)
+        {
+            return new GetVolumeInformationResult(DokanResult.Success, VolumeLabel, FileSystemFeatures.None, "", 256);
+        }
+        public async Task<DokanAsyncResult> Mounted(string mountPoint, AsyncDokanFileInfo info)
+        {
+            return DokanResult.Success;
+        }
+        public async Task<DokanAsyncResult> Unmounted(AsyncDokanFileInfo info)
+        {
+            return DokanResult.Success;
+        }
+        public async Task<GetDiskFreeSpaceResult> GetDiskFreeSpace(AsyncDokanFileInfo info)
+        {
+            var freeBytesAvailable = 512 * 1024 * 1024;
+            var totalBytes = 1024 * 1024 * 1024;
+            var totalFreeBytes = 512 * 1024 * 1024;
+            return new GetDiskFreeSpaceResult(DokanResult.Success, freeBytesAvailable, totalBytes, totalFreeBytes);
+        }
+        #endregion
+        #endregion IAsyncDokanOperations member
+    }
+}

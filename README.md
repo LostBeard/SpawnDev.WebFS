@@ -1,0 +1,21 @@
+﻿# SpawnDev.WebFS
+[![NuGet](https://img.shields.io/nuget/dt/SpawnDev.WebFS.svg?label=SpawnDev.WebFS)](https://www.nuget.org/packages/SpawnDev.WebFS) 
+
+SpawnDev.WebFS lets Blazor WebAssembly web apps host a file system via a domain labeled folder by connecting to 
+the SpawnDev.WebFS.Host app running on the user's PC.
+
+# SpawnDev.WebFS.Host
+The SpawnDev.WebFS.Host app runs on the user's PC with an icon in the system tray* and can optionally start with Windows*. 
+While running, the WebFS host app uses [DokanNet](https://github.com/dokan-dev/dokan-dotnet) to mount a new drive on the user's PC 
+that can be accessed normally by any apps on the users computer. Web sites can request permission to
+provide a file system via a domain labeled folder on the root of the new drive. (* Not implemented yet.)
+
+# Use cases
+- A website that allows protected access to a remote encrypted file system.
+- Team collaboration on shared projects.
+- Browser extension that provides access to Google Photos through a folder by automating Google Photos in a browser page.
+- Access files and folders on your remote devices anywhere using normal apps. 
+- Etc.
+
+#### WIP
+If you are interested in this project, please start an issue to suggest features or areas of interest.
