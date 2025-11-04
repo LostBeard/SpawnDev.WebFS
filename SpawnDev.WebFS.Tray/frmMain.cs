@@ -80,7 +80,7 @@ namespace SpawnDev.WebFS.Tray
             };
 
             using var p = Process.GetCurrentProcess();
-            var appExe = p.MainModule.FileName;
+            var appExe = p.MainModule!.FileName;
             var appExePath = Path.GetDirectoryName(appExe);
 
             // start with windows

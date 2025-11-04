@@ -2,6 +2,7 @@
 using DokanNet.Logging;
 using SpawnDev.BlazorJS;
 using SpawnDev.WebFS.DokanAsync;
+using System.Text.RegularExpressions;
 
 namespace SpawnDev.WebFS.Host
 {
@@ -10,7 +11,20 @@ namespace SpawnDev.WebFS.Host
         public Task Ready => _Ready ??= InitAsync();
         Task? _Ready = null;
         WebFSServer WebFSServer;
-        public string MountPoint { get; private set; }
+        public string MountPoint
+        {
+            get => _MountPoint;
+            set
+            {
+                if (string.IsNullOrEmpty(value)) throw new ArgumentNullException(nameof(value));
+                var m = Regex.Match(value, "^([a-zA-Z])");
+                if (m.Success)
+                {
+                    _MountPoint = m.Groups[1].Value.ToLowerInvariant() + @":\";
+                }
+            }
+        }
+        string _MountPoint = @"q:\";
         ConsoleLogger? dokanLogger;
         Dokan? dokan;
         DokanInstance? dokanInstance;
@@ -44,6 +58,7 @@ namespace SpawnDev.WebFS.Host
                     });
                 dokanInstance = dokanBuilder.Build(WebFSServer);
                 Console.WriteLine(@"Success");
+                return;
             }
             catch (DokanException ex)
             {
@@ -53,8 +68,10 @@ namespace SpawnDev.WebFS.Host
             {
                 Console.WriteLine(@"Verify Dokan 2.3.1.1000 or later is installed and try again. Error: " + ex.Message);
             }
+            // failed. cleanup.
+            StopIt();
         }
-        public void Dispose()
+        public void StopIt()
         {
             if (dokanInstance != null)
             {
@@ -68,6 +85,10 @@ namespace SpawnDev.WebFS.Host
             {
                 dokanLogger.Dispose();
             }
+        }
+        public void Dispose()
+        {
+            StopIt();
         }
     }
 }
