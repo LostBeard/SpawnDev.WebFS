@@ -61,7 +61,7 @@ namespace SpawnDev.WebFS.Host
                 Host = host,
                 FirstSeen = DateTimeOffset.Now,
                 LastSeen = DateTimeOffset.Now,
-                Url = wsConn.RequestOrigin.ToString()
+                Url = wsConn.RequestOrigin.GetLeftPart(UriPartial.Authority)
             };
             conn.Insert<DomainProvider>(perm);
             return perm;
@@ -83,7 +83,7 @@ namespace SpawnDev.WebFS.Host
             else
             {
                 value.LastSeen = DateTimeOffset.Now;
-                value.Url = conn.RequestOrigin.ToString();
+                value.Url = conn.RequestOrigin.GetLeftPart(UriPartial.Authority);
                 UpdateDomainPerm(value);
             }
         }
