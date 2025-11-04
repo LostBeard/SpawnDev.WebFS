@@ -24,15 +24,14 @@ namespace SpawnDev.WebFS.Host
         }
         public Dictionary<string, DomainProvider> DomainProviders { get; } = new Dictionary<string, DomainProvider>();
         WebSocketServer WebSocketServer;
-        public string VolumeLabel;
+        public string VolumeLabel { get; } = "WebFS";
         IServiceProvider ServiceProvider;
         AppDB AppDB;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
-        public WebFSServer(AppDB appDB, IServiceProvider serviceProvider, string? volumeLabel = null, ushort port = 6565)
+        public WebFSServer(AppDB appDB, IServiceProvider serviceProvider, ushort port = 6565)
         {
             AppDB = appDB;
             ServiceProvider = serviceProvider;
-            VolumeLabel = string.IsNullOrEmpty(volumeLabel) ? GetType().Name : volumeLabel;
             WebSocketServer = new WebSocketServer(ServiceProvider, port);
             WebSocketServer.OnConnectRequest += WebSocketServer_OnConnectRequest;
             WebSocketServer.OnConnected += WebSocketServer_OnConnected;
