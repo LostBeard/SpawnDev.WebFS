@@ -4,7 +4,7 @@
 #define MyAppPublisher "SpawnDev"
 #define MyAppURL "https://github.com/LostBeard/SpawnDev.WebFS"
 #define MyAppExeName "SpawnDev.WebFS.Tray.exe"
-#define SetupBaseName "SpawnDevWebFSSetup-"
+#define SetupBaseName "SpawnDevWebFSSetup"
 #define MyAppExeDirectory ".\bin\Publish\win-any"
 #define MySetupIconFile ".\mapped_site.ico"
 
@@ -24,8 +24,8 @@ DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 PrivilegesRequired=lowest
-OutputDir=.\bin\Setup
-OutputBaseFilename={#SetupBaseName}{#MyAppVersion}
+OutputDir=..\Setup
+OutputBaseFilename={#SetupBaseName}
 SetupIconFile={#MySetupIconFile}
 Compression=lzma
 SolidCompression=yes

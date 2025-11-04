@@ -69,10 +69,7 @@ namespace SpawnDev.WebFS.Tray
 
             _sysTray.ContextMenuStrip = new ContextMenuStrip();
 
-            _sysTray.ContextMenuStrip.Items.Add(_recentMI = new ToolStripMenuItem("Domains", null, (s, e) =>
-            {
-
-            }));
+            _sysTray.ContextMenuStrip.Items.Add(_recentMI = new ToolStripMenuItem("Domains"));
 
             _sysTray.ContextMenuStrip.Opening += (s, e) =>
             {
