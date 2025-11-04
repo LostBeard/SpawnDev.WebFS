@@ -140,7 +140,15 @@ namespace SpawnDev.WebFS.Tray
         {
             if (_openDriveMI != null)
             {
-                _openDriveMI.Text = $"Open Drive {DokanService.MountPoint.ToUpperInvariant().Substring(0, 2)}";
+                if (string.IsNullOrEmpty(DokanService.MountPoint))
+                {
+                    _openDriveMI.Enabled = false;
+                }
+                else
+                {
+                    _openDriveMI.Enabled = true;
+                    _openDriveMI.Text = $"Open Drive {DokanService.MountPoint.ToUpperInvariant().Substring(0, 2)}";
+                }
             }
             if (_recentMI == null) return;
             _recentMI.DropDownItems.Clear();

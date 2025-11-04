@@ -8,8 +8,8 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<ApplicationIcon>mapped_site.ico</ApplicationIcon>
 		<Deterministic>false</Deterministic>
-		<Version>1.0.3</Version>
-		<AssemblyVersion>1.0.3</AssemblyVersion>
+		<Version>1.0.4</Version>
+		<AssemblyVersion>1.0.4</AssemblyVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
