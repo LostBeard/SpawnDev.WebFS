@@ -67,28 +67,31 @@ namespace SpawnDev.DB
             }
         }
         string AppSettingsTableName = "AppSettings";
-        public T GetSetting<T>(string id) => GetSetting<T>(id, default(T));
+        public T GetSetting<T>(string id) => GetSetting<T>(id, default(T)!);
         public T GetSetting<T>(string id, T defaultValue)
         {
             try
             {
                 using (var conn = GetConn())
                 {
-                    var row = conn.ExecuteScalar<string>($"SELECT JsonValue FROM {AppSettingsTableName} WHERE Query = @Query", new { Id = id });
+                    var row = conn.ExecuteScalar<string>($"SELECT JsonValue FROM {AppSettingsTableName} WHERE Id = @Id", new { Id = id });
                     if (row != null)
                     {
-                        return JsonSerializer.Deserialize<T>(row);
+                        return JsonSerializer.Deserialize<T>(row)!;
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                var nmt = true;
+            }
             return defaultValue;
         }
         public bool SettingExists(string id)
         {
             using (var conn = GetConn())
             {
-                return 1 == conn.ExecuteScalar<int>($"SELECT count(*) FROM {AppSettingsTableName} WHERE Query = @Query", new { Id = id });
+                return 1 == conn.ExecuteScalar<int>($"SELECT count(*) FROM {AppSettingsTableName} WHERE Id = @Id", new { Id = id });
             }
         }
         public void RemoveSetting(string id)
@@ -97,7 +100,7 @@ namespace SpawnDev.DB
             {
                 using (var conn = GetConn())
                 {
-                    conn.Execute($"DELETE FROM {AppSettingsTableName} WHERE Query = @Query", new { Id = id });
+                    conn.Execute($"DELETE FROM {AppSettingsTableName} WHERE Id = @Id", new { Id = id });
                 }
             }
             catch { }
@@ -106,13 +109,16 @@ namespace SpawnDev.DB
         {
             try
             {
-                var json = JsonSerializer.Serialize(value);
+                var json = JsonSerializer.Serialize((object?)value);
                 using (var conn = GetConn())
                 {
                     var ret = conn.ReplaceInto(new AppSetting { Id = id, JsonValue = json });
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                var nmt = true;
+            }
         }
     }
 }
