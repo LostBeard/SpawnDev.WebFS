@@ -5,6 +5,8 @@ SpawnDev.WebFS lets Blazor WebAssembly web apps host a file system via a domain 
 the SpawnDev.WebFS.Host app running on the user's PC.
 
 # SpawnDev.WebFS.Tray
+<img width="48" src="https://github.com/LostBeard/SpawnDev.WebFS/raw/refs/heads/master/SpawnDev.WebFS/wwwroot/webfs-128.png" />  
+
 [SpawnDevWebFSSetup.exe](https://github.com/LostBeard/SpawnDev.WebFS/raw/refs/heads/master/Setup/SpawnDevWebFSSetup.exe)
 
 The SpawnDev.WebFS.Tray app runs on the user's PC with an icon in the system tray and can optionally start with Windows. 
