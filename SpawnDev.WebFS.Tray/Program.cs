@@ -44,12 +44,7 @@ namespace SpawnDev.WebFS.Tray
             // Dokan Service
             builder.Services.AddSingleton<WebFSServer>();
             builder.Services.AddSingleton<DokanService>();
-
-            var tt = DateTime.Now;
-            var gg = tt.ToString("o");
-            var bb = DateTime.ParseExact(gg, "o", CultureInfo.InvariantCulture.DateTimeFormat);
-
-            // Start
+            // Build
             var host = builder.Build();
             return host;
         }
