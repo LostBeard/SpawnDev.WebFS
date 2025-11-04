@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Win32;
 using SpawnDev.BlazorJS;
 using SpawnDev.WebFS.Host;
 using System.ComponentModel;
+using System.Diagnostics;
 
 namespace SpawnDev.WebFS.Tray
 {
@@ -77,6 +79,46 @@ namespace SpawnDev.WebFS.Tray
                 UpdateMenu();
             };
 
+            using var p = Process.GetCurrentProcess();
+            var appExe = p.MainModule.FileName;
+            var appExePath = Path.GetDirectoryName(appExe);
+
+            // start with windows
+            ToolStripMenuItem autoStartGMMI = null;
+            string autoStartValue = "\"" + appExe + "\" --background";
+            string appExeFileName = Path.GetFileName(appExe).ToLower().Replace(".vshost", "");
+
+            autoStartGMMI = new ToolStripMenuItem("Autostart", null, (s, e) =>
+            {
+                autoStartGMMI!.Checked = !autoStartGMMI.Checked;
+                try
+                {
+                    using (var rkey = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+                    {
+                        if (autoStartGMMI.Checked)
+                        {
+                            rkey.SetValue(Application.ProductName, autoStartValue);
+                        }
+                        else
+                        {
+                            rkey.DeleteValue(Application.ProductName!);
+                        }
+                    }
+                }
+                catch { }
+            });
+
+            try
+            {
+                using (var rkey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+                {
+                    var startup_path = rkey?.GetValue(Application.ProductName, "").ToString();
+                    autoStartGMMI.Checked = startup_path?.ToLower().Contains(appExeFileName) ?? false;
+                }
+            }
+            catch { }
+            _sysTray.ContextMenuStrip.Items.Add(autoStartGMMI);
+
             // exit
             _sysTray.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Exit", null, async (s, e) =>
             {
@@ -98,8 +140,8 @@ namespace SpawnDev.WebFS.Tray
                 if (isConnected) m.ForeColor = Color.BlueViolet;
                 m.Checked = mi.Value.Enabled == true;
                 _recentMI.DropDownItems.Add(m);
-            } 
-            if(_recentMI.DropDownItems.Count == 0)
+            }
+            if (_recentMI.DropDownItems.Count == 0)
             {
                 _recentMI.DropDownItems.Add("None");
             }
