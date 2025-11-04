@@ -16,9 +16,9 @@ provide a file system via a domain labeled folder on the root of the new drive.
 
 ## WebFS Providers
 Website file system providers list with links and descriptions.
+
 ### [WebFS Demo Provider](https://lostbeard.github.io/SpawnDev.WebFS/)
 > Demonstrates WebFS by providing read and write access to the browsers [Origin private file system](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system).
-
 
 ## Use cases
 - A website that allows protected access to a remote encrypted file system.
