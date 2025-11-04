@@ -15,7 +15,7 @@ provide a file system via a domain labeled folder on the root of the new drive.
 **WebFS Tray Download:**  [SpawnDevWebFSSetup](https://github.com/LostBeard/SpawnDev.WebFS/raw/refs/heads/master/Setup/SpawnDevWebFSSetup.exe)
 
 ## WebFS Providers
-Website file system providers list with links and descriptions.
+Website file system provider links and descriptions.
 
 ### [lostbeard.github.io - Demo WebFS Provider](https://lostbeard.github.io/SpawnDev.WebFS/)
 > Demonstrates WebFS by providing read and write access to the browser's [Origin private file system](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system).
