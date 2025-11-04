@@ -14,6 +14,10 @@ While running, the WebFS host app uses [DokanNet](https://github.com/dokan-dev/d
 that can be accessed normally by any apps on the user's computer. Web sites can request permission to
 provide a file system via a domain labeled folder on the root of the new drive.
 
+# Used by
+- Demo provider - (WIP)
+- WebSites that use this will be listed here with brief explanations and links. 
+
 # Use cases
 - A website that allows protected access to a remote encrypted file system.
 - Team collaboration on shared projects.
