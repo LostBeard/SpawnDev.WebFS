@@ -3,52 +3,101 @@ using System.Security.AccessControl;
 using SpawnDev.WebFS.DokanAsync;
 using FileAccess = DokanNet.FileAccess;
 using FileOptions = System.IO.FileOptions;
+using SpawnDev.DB;
+using Dapper.Contrib.Extensions;
 
 namespace SpawnDev.WebFS.Host
 {
+    public class DomainPerm
+    {
+        [ExplicitKey]
+        public string Host { get; set; }
+        public bool? Enabled { get; set; }
+        public DateTimeOffset FirstSeen { get; set; }
+        public DateTimeOffset LastSeen { get; set; }
+    }
     public class WebFSServer : IAsyncDokanOperations
     {
         public List<string> ConnectedDomains => WebSocketServer.Connections.Select(o => o.RequestOrigin.Host).ToList();
-        public Dictionary<string, bool> DomainEnabled { get; } = new Dictionary<string, bool>();
+        List<WebSocketConnection> EnabledConnections
+        {
+            get
+            {
+                var allowedHosts = DomainEnabled.Values.ToList().Where(o => o.Enabled == true).Select(o => o.Host).ToList();
+                var conns = WebSocketServer.Connections.ToList();
+                var enabledConnections = conns.Where(o => allowedHosts.Contains(o.RequestOrigin.Host)).ToList();
+                return enabledConnections;
+            }
+        }
+        public Dictionary<string, DomainPerm> DomainEnabled { get; } = new Dictionary<string, DomainPerm>();
         WebSocketServer WebSocketServer;
         public string VolumeLabel;
         IServiceProvider ServiceProvider;
+        AppDB AppDB;
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "<Pending>")]
-        public WebFSServer(IServiceProvider serviceProvider, string? volumeLabel = null, ushort port = 6565)
+        public WebFSServer(AppDB appDB, IServiceProvider serviceProvider, string? volumeLabel = null, ushort port = 6565)
         {
+            AppDB = appDB;
             ServiceProvider = serviceProvider;
             VolumeLabel = string.IsNullOrEmpty(volumeLabel) ? GetType().Name : volumeLabel;
             WebSocketServer = new WebSocketServer(ServiceProvider, port);
             WebSocketServer.OnConnectRequest += WebSocketServer_OnConnectRequest;
             WebSocketServer.OnConnected += WebSocketServer_OnConnected;
             WebSocketServer.OnDisconnected += WebSocketServer_OnDisconnected;
+            using var conn = AppDB.GetConn();
+            conn.CreateTableIfNotExists<DomainPerm>();
+            DomainEnabled = conn.GetAll<DomainPerm>().ToDictionary(o => o.Host, o => o);
             WebSocketServer.StartListening();
         }
+        DomainPerm? GetDomainPerm(string host)
+        {
+            using var conn = AppDB.GetConn();
+            var ret = conn.Get<DomainPerm>(host);
+            return ret;
+        }
+        void UpdateDomainPerm(DomainPerm perm)
+        {
+            using var conn = AppDB.GetConn();
+            conn.Update<DomainPerm>(perm);
+        }
+        DomainPerm SaveNewPerm(string host)
+        {
+            using var conn = AppDB.GetConn();
+            var perm = new DomainPerm
+            {
+                Host = host,
+                FirstSeen = DateTimeOffset.Now,
+                LastSeen = DateTimeOffset.Now,
+            };
+            conn.Insert<DomainPerm>(perm);
+            return perm;
+        }
+
         private void WebSocketServer_OnDisconnected(WebSocketServer sender, WebSocketConnection conn)
         {
             Console.WriteLine($"WebSocketServer_OnDisconnected: {conn.ConnectionId}");
         }
+        public event Action<DomainPerm> NewDomainPerm = default!;
         private void WebSocketServer_OnConnected(WebSocketServer sender, WebSocketConnection conn)
         {
             Console.WriteLine($"WebSocketServer_OnConnected: {conn.ConnectionId} {conn.UserAgent}");
-            if (!DomainEnabled.TryGetValue(conn.RequestOrigin.Host, out bool value))
+            if (!DomainEnabled.TryGetValue(conn.RequestOrigin.Host, out var value))
             {
-                DomainEnabled[conn.RequestOrigin.Host] = false;
+                value = SaveNewPerm(conn.RequestOrigin.Host);
+                DomainEnabled[conn.RequestOrigin.Host] = value;
+                NewDomainPerm?.Invoke(value);
             }
         }
-        public bool GetDomainAllowed(string host)
+        public DomainPerm? GetDomainAllowed(string host)
         {
-            return DomainEnabled.TryGetValue(host, out bool value) ? value : false;
+            return DomainEnabled.TryGetValue(host, out var value) ? value : null;
         }
-        public void SetDomainAllowed(string host, bool enabled, bool allowCreate = false)
+        public void SetDomainAllowed(string host, bool enabled)
         {
-            if (DomainEnabled.TryGetValue(host, out bool value))
+            if (DomainEnabled.TryGetValue(host, out var value))
             {
-                DomainEnabled[host] = enabled;
-            }
-            else if (allowCreate)
-            {
-                DomainEnabled[host] = enabled;
+                value.Enabled = enabled;
+                UpdateDomainPerm(value);
             }
         }
         private void WebSocketServer_OnConnectRequest(WebSocketServer sender, ConnectionRequestArgs eventArgs)
@@ -184,7 +233,7 @@ namespace SpawnDev.WebFS.Host
                 host = fHost;
                 parts.RemoveAt(0);
                 path = string.Join("/", parts);
-                conn = WebSocketServer.Connections.OrderBy(o => o.WhenConnected).FirstOrDefault(o => o.IsConnected && o.RequestOrigin.Host == fHost);
+                conn = EnabledConnections.OrderBy(o => o.WhenConnected).FirstOrDefault(o => o.IsConnected && o.RequestOrigin.Host == fHost);
             }
             return conn != null;
         }
@@ -193,8 +242,7 @@ namespace SpawnDev.WebFS.Host
             if (filename == "\\")
             {
                 var files = new List<FileInformation>();
-                var conns = WebSocketServer.Connections.ToList();
-                var hosts = conns.Select(o => o.RequestOrigin.Host).Distinct().ToList();
+                var hosts = EnabledConnections.Select(o => o.RequestOrigin.Host).Distinct().ToList();
                 foreach (var host in hosts)
                 {
                     var finfo = new FileInformation

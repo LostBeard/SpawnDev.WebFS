@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting.Internal;
-using System.Threading.Tasks;
 
 namespace SpawnDev.WebFS.Tray
 {
@@ -11,16 +9,7 @@ namespace SpawnDev.WebFS.Tray
         public WinFormsAppBuilder(string[]? args = null)
         {
             Args = args;
-            HostingEnvironment env = new HostingEnvironment();
-            env.ContentRootPath = Directory.GetCurrentDirectory();
-#if DEBUG
-            env.EnvironmentName = "Development";
-#else
-            env.EnvironmentName = "Production";
-#endif
-            ////Startup startup = new Startup(env);
             Services = new ServiceCollection();
-            Services.AddSingleton(env);
             Services.AddSingleton(Services);
             Services.AddSingleton<IServiceProvider>(sp => sp);
         }

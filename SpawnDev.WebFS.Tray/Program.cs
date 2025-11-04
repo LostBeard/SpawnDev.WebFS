@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using SpawnDev.BlazorJS;
+using SpawnDev.DB;
 using SpawnDev.WebFS.Host;
 using System.Diagnostics;
+using System.Globalization;
 
 namespace SpawnDev.WebFS.Tray
 {
@@ -24,7 +26,7 @@ namespace SpawnDev.WebFS.Tray
             {
                 var host = await InitApp(args);
                 ApplicationConfiguration.Initialize();
-                Application.Run(new Form1(host));
+                Application.Run(new frmMain(host));
                 mutex.ReleaseMutex();
             }
             mutex.Dispose();
@@ -33,9 +35,19 @@ namespace SpawnDev.WebFS.Tray
         {
             var builder = WinFormsAppBuilder.CreateDefault(args);
             builder.Services.AddBlazorJSRuntime();
+            // DB
+            DateTimeHandler.AddDateTimeHandler();
+            DateTimeNullableHandler.AddDateTimeNullableHandler();
+            DateTimeOffsetHandler.AddDateTimeOffsetHandler();
+            DateTimeOffsetNullableHandler.AddDateTimeOffsetNullableHandler();
+            builder.Services.AddSingleton<AppDB>();
             // Dokan Service
             builder.Services.AddSingleton<WebFSServer>();
             builder.Services.AddSingleton<DokanService>();
+
+            var tt = DateTime.Now;
+            var gg = tt.ToString("o");
+            var bb = DateTime.ParseExact(gg, "o", CultureInfo.InvariantCulture.DateTimeFormat);
 
             // Start
             var host = builder.Build();

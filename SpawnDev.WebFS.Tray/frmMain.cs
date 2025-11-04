@@ -5,14 +5,14 @@ using System.ComponentModel;
 
 namespace SpawnDev.WebFS.Tray
 {
-    public partial class Form1 : Form
+    public partial class frmMain : Form
     {
         NotifyIcon? _sysTray = null;
         ToolStripMenuItem? _recentMI = null;
         WinFormsApp WinFormsApp { get; }
         DokanService DokanService { get; }
         WebFSServer WebFSServer { get; }
-        public Form1(WinFormsApp winFormsApp)
+        public frmMain(WinFormsApp winFormsApp)
         {
             WinFormsApp = winFormsApp;
             DokanService = WinFormsApp.Services.GetRequiredService<DokanService>();
@@ -96,7 +96,7 @@ namespace SpawnDev.WebFS.Tray
                     WebFSServer.SetDomainAllowed(mi.Key, !m!.Checked);
                 });
                 if (isConnected) m.ForeColor = Color.BlueViolet;
-                m.Checked = mi.Value;
+                m.Checked = mi.Value.Enabled == true;
                 _recentMI.DropDownItems.Add(m);
             } 
             if(_recentMI.DropDownItems.Count == 0)
