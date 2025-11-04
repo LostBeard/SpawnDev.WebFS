@@ -4,8 +4,8 @@
 SpawnDev.WebFS lets Blazor WebAssembly web apps host a file system via a domain labeled folder by connecting to 
 the SpawnDev.WebFS.Host app running on the user's PC.
 
-# SpawnDev.WebFS.Host
-The SpawnDev.WebFS.Host app runs on the user's PC with an icon in the system tray* and can optionally start with Windows*. 
+# SpawnDev.WebFS.Tray
+The SpawnDev.WebFS.Tray app runs on the user's PC with an icon in the system tray and can optionally start with Windows*. 
 While running, the WebFS host app uses [DokanNet](https://github.com/dokan-dev/dokan-dotnet) to mount a new drive on the user's PC 
 that can be accessed normally by any apps on the users computer. Web sites can request permission to
 provide a file system via a domain labeled folder on the root of the new drive. (* Not implemented yet.)
