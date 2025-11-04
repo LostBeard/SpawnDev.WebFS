@@ -55,7 +55,7 @@ namespace SpawnDev.WebFS.Tray
                 if (Visible && ShowInTaskbar)
                 {
                     Hide();
-                    ShowInTaskbar = true;
+                    ShowInTaskbar = false;
                 }
                 else
                 {
@@ -129,7 +129,45 @@ namespace SpawnDev.WebFS.Tray
         {
             if (_recentMI == null) return;
             _recentMI.DropDownItems.Clear();
-            foreach (var mi in WebFSServer.DomainEnabled)
+            var connectedHosts = WebFSServer.ConnectedDomains;
+            foreach (var provider in WebFSServer.DomainProviders.Values)
+            {
+                var mm = new ToolStripMenuItem(provider.Host);
+                _recentMI.DropDownItems.Add(mm);
+                var isConnected = connectedHosts.Contains(provider.Host);
+                if (isConnected) mm.ForeColor = Color.BlueViolet;
+                //Goto [provider.Host]
+                mm.DropDownItems.Add(new ToolStripMenuItem($"Goto {provider.Host}", null, (s, e) =>
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = provider.Url,
+                        UseShellExecute = true
+                    });
+                }));
+                // Enable checked/unchecked
+                mm.DropDownItems.Add(new ToolStripMenuItem("Enable", null, (s, e) =>
+                {
+                    if (s is ToolStripMenuItem ts)
+                    {
+                        var isChecked = ts.CheckState == CheckState.Checked;
+                        WebFSServer.SetDomainAllowed(provider.Host, !isChecked);
+                    }
+                })
+                {
+                    CheckState = provider.Enabled == null ? CheckState.Indeterminate : (provider.Enabled == true ? CheckState.Checked : CheckState.Unchecked),
+                });
+            }
+            if (_recentMI.DropDownItems.Count == 0)
+            {
+                _recentMI.DropDownItems.Add("None");
+            }
+        }
+        void UpdateMenuOld()
+        {
+            if (_recentMI == null) return;
+            _recentMI.DropDownItems.Clear();
+            foreach (var mi in WebFSServer.DomainProviders)
             {
                 ToolStripMenuItem? m = null;
                 var isConnected = WebFSServer.ConnectedDomains.Contains(mi.Key);

@@ -8,14 +8,6 @@ using Dapper.Contrib.Extensions;
 
 namespace SpawnDev.WebFS.Host
 {
-    public class DomainPerm
-    {
-        [ExplicitKey]
-        public string Host { get; set; }
-        public bool? Enabled { get; set; }
-        public DateTimeOffset FirstSeen { get; set; }
-        public DateTimeOffset LastSeen { get; set; }
-    }
     public class WebFSServer : IAsyncDokanOperations
     {
         public List<string> ConnectedDomains => WebSocketServer.Connections.Select(o => o.RequestOrigin.Host).ToList();
@@ -23,13 +15,13 @@ namespace SpawnDev.WebFS.Host
         {
             get
             {
-                var allowedHosts = DomainEnabled.Values.ToList().Where(o => o.Enabled == true).Select(o => o.Host).ToList();
+                var allowedHosts = DomainProviders.Values.ToList().Where(o => o.Enabled == true).Select(o => o.Host).ToList();
                 var conns = WebSocketServer.Connections.ToList();
                 var enabledConnections = conns.Where(o => allowedHosts.Contains(o.RequestOrigin.Host)).ToList();
                 return enabledConnections;
             }
         }
-        public Dictionary<string, DomainPerm> DomainEnabled { get; } = new Dictionary<string, DomainPerm>();
+        public Dictionary<string, DomainProvider> DomainProviders { get; } = new Dictionary<string, DomainProvider>();
         WebSocketServer WebSocketServer;
         public string VolumeLabel;
         IServiceProvider ServiceProvider;
@@ -45,31 +37,33 @@ namespace SpawnDev.WebFS.Host
             WebSocketServer.OnConnected += WebSocketServer_OnConnected;
             WebSocketServer.OnDisconnected += WebSocketServer_OnDisconnected;
             using var conn = AppDB.GetConn();
-            conn.CreateTableIfNotExists<DomainPerm>();
-            DomainEnabled = conn.GetAll<DomainPerm>().ToDictionary(o => o.Host, o => o);
+            conn.CreateTableIfNotExists<DomainProvider>();
+            DomainProviders = conn.GetAll<DomainProvider>().ToDictionary(o => o.Host, o => o);
             WebSocketServer.StartListening();
         }
-        DomainPerm? GetDomainPerm(string host)
+        DomainProvider? GetDomainPerm(string host)
         {
             using var conn = AppDB.GetConn();
-            var ret = conn.Get<DomainPerm>(host);
+            var ret = conn.Get<DomainProvider>(host);
             return ret;
         }
-        void UpdateDomainPerm(DomainPerm perm)
+        void UpdateDomainPerm(DomainProvider perm)
         {
             using var conn = AppDB.GetConn();
-            conn.Update<DomainPerm>(perm);
+            conn.Update<DomainProvider>(perm);
         }
-        DomainPerm SaveNewPerm(string host)
+        DomainProvider SaveNewPerm(WebSocketConnection wsConn)
         {
+            var host = wsConn.RequestOrigin.Host;
             using var conn = AppDB.GetConn();
-            var perm = new DomainPerm
+            var perm = new DomainProvider
             {
                 Host = host,
                 FirstSeen = DateTimeOffset.Now,
                 LastSeen = DateTimeOffset.Now,
+                Url = wsConn.RequestOrigin.GetLeftPart(UriPartial.Authority)
             };
-            conn.Insert<DomainPerm>(perm);
+            conn.Insert<DomainProvider>(perm);
             return perm;
         }
 
@@ -77,24 +71,24 @@ namespace SpawnDev.WebFS.Host
         {
             Console.WriteLine($"WebSocketServer_OnDisconnected: {conn.ConnectionId}");
         }
-        public event Action<DomainPerm> NewDomainPerm = default!;
+        public event Action<DomainProvider> NewDomainPerm = default!;
         private void WebSocketServer_OnConnected(WebSocketServer sender, WebSocketConnection conn)
         {
             Console.WriteLine($"WebSocketServer_OnConnected: {conn.ConnectionId} {conn.UserAgent}");
-            if (!DomainEnabled.TryGetValue(conn.RequestOrigin.Host, out var value))
+            if (!DomainProviders.TryGetValue(conn.RequestOrigin.Host, out var value))
             {
-                value = SaveNewPerm(conn.RequestOrigin.Host);
-                DomainEnabled[conn.RequestOrigin.Host] = value;
+                value = SaveNewPerm(conn);
+                DomainProviders[conn.RequestOrigin.Host] = value;
                 NewDomainPerm?.Invoke(value);
             }
         }
-        public DomainPerm? GetDomainAllowed(string host)
+        public DomainProvider? GetDomainAllowed(string host)
         {
-            return DomainEnabled.TryGetValue(host, out var value) ? value : null;
+            return DomainProviders.TryGetValue(host, out var value) ? value : null;
         }
         public void SetDomainAllowed(string host, bool enabled)
         {
-            if (DomainEnabled.TryGetValue(host, out var value))
+            if (DomainProviders.TryGetValue(host, out var value))
             {
                 value.Enabled = enabled;
                 UpdateDomainPerm(value);
