@@ -8,6 +8,8 @@ namespace SpawnDev.WebFS.Host
 {
     public class WebFSServer : IAsyncDokanOperations
     {
+        public List<string> ConnectedDomains => WebSocketServer.Connections.Select(o => o.RequestOrigin.Host).ToList();
+        public Dictionary<string, bool> DomainEnabled { get; } = new Dictionary<string, bool>();
         WebSocketServer WebSocketServer;
         public string VolumeLabel;
         IServiceProvider ServiceProvider;
@@ -29,6 +31,25 @@ namespace SpawnDev.WebFS.Host
         private void WebSocketServer_OnConnected(WebSocketServer sender, WebSocketConnection conn)
         {
             Console.WriteLine($"WebSocketServer_OnConnected: {conn.ConnectionId} {conn.UserAgent}");
+            if (!DomainEnabled.TryGetValue(conn.RequestOrigin.Host, out bool value))
+            {
+                DomainEnabled[conn.RequestOrigin.Host] = false;
+            }
+        }
+        public bool GetDomainAllowed(string host)
+        {
+            return DomainEnabled.TryGetValue(host, out bool value) ? value : false;
+        }
+        public void SetDomainAllowed(string host, bool enabled, bool allowCreate = false)
+        {
+            if (DomainEnabled.TryGetValue(host, out bool value))
+            {
+                DomainEnabled[host] = enabled;
+            }
+            else if (allowCreate)
+            {
+                DomainEnabled[host] = enabled;
+            }
         }
         private void WebSocketServer_OnConnectRequest(WebSocketServer sender, ConnectionRequestArgs eventArgs)
         {

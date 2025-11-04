@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpawnDev.WebFS", "SpawnDev.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpawnDev.WebFS.Host", "SpawnDev.WebFS.Host\SpawnDev.WebFS.Host.csproj", "{67C903F0-A09B-A1B6-81A4-B0234AB6DFBF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpawnDev.WebFS.Tray", "SpawnDev.WebFS.Tray\SpawnDev.WebFS.Tray.csproj", "{06AAD6EB-1969-4E83-815A-2B384757CD7D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{67C903F0-A09B-A1B6-81A4-B0234AB6DFBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{67C903F0-A09B-A1B6-81A4-B0234AB6DFBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{67C903F0-A09B-A1B6-81A4-B0234AB6DFBF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{06AAD6EB-1969-4E83-815A-2B384757CD7D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{06AAD6EB-1969-4E83-815A-2B384757CD7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{06AAD6EB-1969-4E83-815A-2B384757CD7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{06AAD6EB-1969-4E83-815A-2B384757CD7D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

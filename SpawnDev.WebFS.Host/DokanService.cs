@@ -5,15 +5,19 @@ using SpawnDev.WebFS.DokanAsync;
 
 namespace SpawnDev.WebFS.Host
 {
-    public class DokanService : IAsyncBackgroundService
+    public class DokanService : IAsyncBackgroundService, IDisposable
     {
         public Task Ready => _Ready ??= InitAsync();
         Task? _Ready = null;
-        WebFSServer? rfs = null;
-        IServiceProvider ServiceProvider;
-        public DokanService(IServiceProvider serviceProvider)
+        WebFSServer WebFSServer;
+        public string MountPoint { get; private set; }
+        ConsoleLogger? dokanLogger;
+        Dokan? dokan;
+        DokanInstance? dokanInstance;
+        public DokanService(WebFSServer webFSServer)
         {
-            ServiceProvider = serviceProvider;
+            WebFSServer = webFSServer;
+            MountPoint = @"q:\";
         }
         async Task InitAsync()
         {
@@ -30,28 +34,16 @@ namespace SpawnDev.WebFS.Host
         {
             try
             {
-                using (var mre = new ManualResetEvent(false))
-                using (var dokanLogger = new ConsoleLogger("[Dokan] "))
-                using (var dokan = new Dokan(dokanLogger))
-                {
-                    Console.CancelKeyPress += (sender, e) =>
+                dokanLogger = new ConsoleLogger("[Dokan] ");
+                dokan = new Dokan(dokanLogger);
+                var dokanBuilder = new DokanInstanceBuilder(dokan)
+                    .ConfigureOptions(options =>
                     {
-                        e.Cancel = true;
-                        mre.Set();
-                    };
-                    rfs = new WebFSServer(ServiceProvider);
-                    var dokanBuilder = new DokanInstanceBuilder(dokan)
-                        .ConfigureOptions(options =>
-                        {
-                            options.Options = DokanOptions.StderrOutput;
-                            options.MountPoint = "q:\\";
-                        });
-                    using (var dokanInstance = dokanBuilder.Build(rfs))
-                    {
-                        mre.WaitOne();
-                    }
-                    Console.WriteLine(@"Success");
-                }
+                        //options.Options = DokanOptions.StderrOutput;
+                        options.MountPoint = MountPoint;
+                    });
+                dokanInstance = dokanBuilder.Build(WebFSServer);
+                Console.WriteLine(@"Success");
             }
             catch (DokanException ex)
             {
@@ -60,6 +52,21 @@ namespace SpawnDev.WebFS.Host
             catch (Exception ex)
             {
                 Console.WriteLine(@"Verify Dokan 2.3.1.1000 or later is installed and try again. Error: " + ex.Message);
+            }
+        }
+        public void Dispose()
+        {
+            if (dokanInstance != null)
+            {
+                dokanInstance.Dispose();
+            }
+            if (dokan != null)
+            {
+                dokan.Dispose();
+            }
+            if (dokanLogger != null)
+            {
+                dokanLogger.Dispose();
             }
         }
     }
