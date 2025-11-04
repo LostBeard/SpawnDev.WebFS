@@ -11,13 +11,14 @@ namespace SpawnDev.WebFS.Tray
     {
         NotifyIcon? _sysTray = null;
         ToolStripMenuItem? _recentMI = null;
+        ToolStripMenuItem? _openDriveMI = null;
         WinFormsApp WinFormsApp { get; }
-        DokanService DokanService { get; }
+        WebFSHost DokanService { get; }
         WebFSServer WebFSServer { get; }
         public frmMain(WinFormsApp winFormsApp)
         {
             WinFormsApp = winFormsApp;
-            DokanService = WinFormsApp.Services.GetRequiredService<DokanService>();
+            DokanService = WinFormsApp.Services.GetRequiredService<WebFSHost>();
             WebFSServer = WinFormsApp.Services.GetRequiredService<WebFSServer>();
             InitializeComponent();
         }
@@ -67,24 +68,30 @@ namespace SpawnDev.WebFS.Tray
                 }
             };
 
+            // Tray menu
             _sysTray.ContextMenuStrip = new ContextMenuStrip();
-
-            _sysTray.ContextMenuStrip.Items.Add(_recentMI = new ToolStripMenuItem("Domains"));
-
             _sysTray.ContextMenuStrip.Opening += (s, e) =>
             {
                 UpdateMenu();
             };
 
+            // Domains
+            _sysTray.ContextMenuStrip.Items.Add(_recentMI = new ToolStripMenuItem("Domains"));
+
+            // Open Drive
+            _sysTray.ContextMenuStrip.Items.Add(_openDriveMI = new ToolStripMenuItem("Open Drive ...", null, async (s, e) =>
+            {
+                DokanService.OpenMountPoint();
+            }));
+
+            #region Autostart
             using var p = Process.GetCurrentProcess();
             var appExe = p.MainModule!.FileName;
             var appExePath = Path.GetDirectoryName(appExe);
-
             // start with windows
             ToolStripMenuItem autoStartGMMI = null;
             string autoStartValue = "\"" + appExe + "\" --background";
             string appExeFileName = Path.GetFileName(appExe).ToLower().Replace(".vshost", "");
-
             autoStartGMMI = new ToolStripMenuItem("Autostart", null, (s, e) =>
             {
                 autoStartGMMI!.Checked = !autoStartGMMI.Checked;
@@ -104,7 +111,6 @@ namespace SpawnDev.WebFS.Tray
                 }
                 catch { }
             });
-
             try
             {
                 using (var rkey = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
@@ -115,6 +121,7 @@ namespace SpawnDev.WebFS.Tray
             }
             catch { }
             _sysTray.ContextMenuStrip.Items.Add(autoStartGMMI);
+            #endregion
 
             // exit
             _sysTray.ContextMenuStrip.Items.Add(new ToolStripMenuItem("Exit", null, async (s, e) =>
@@ -124,6 +131,10 @@ namespace SpawnDev.WebFS.Tray
         }
         void UpdateMenu()
         {
+            if (_openDriveMI != null)
+            {
+                _openDriveMI.Text = $"Open Drive {DokanService.MountPoint.ToUpperInvariant().Substring(0, 2)}";
+            }
             if (_recentMI == null) return;
             _recentMI.DropDownItems.Clear();
             var connectedHosts = WebFSServer.ConnectedDomains;
@@ -133,14 +144,18 @@ namespace SpawnDev.WebFS.Tray
                 _recentMI.DropDownItems.Add(mm);
                 var isConnected = connectedHosts.Contains(provider.Host);
                 if (isConnected) mm.ForeColor = Color.BlueViolet;
-                //Goto [provider.Host]
+                // Open folder [provider.Host]
+                mm.DropDownItems.Add(new ToolStripMenuItem($"Open folder", null, (s, e) =>
+                {
+                    DokanService.OpenHostFolder(provider);
+                })
+                {
+                    Enabled = isConnected && DokanService.GetHostFolderExists(provider)
+                });
+                // Goto site [provider.Host]
                 mm.DropDownItems.Add(new ToolStripMenuItem($"Goto {provider.Host}", null, (s, e) =>
                 {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = provider.Url,
-                        UseShellExecute = true
-                    });
+                    DokanService.OpenHostUrl(provider);
                 }));
                 // Enable checked/unchecked
                 mm.DropDownItems.Add(new ToolStripMenuItem("Enable", null, (s, e) =>

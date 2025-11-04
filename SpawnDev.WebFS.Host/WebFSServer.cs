@@ -1,10 +1,11 @@
-﻿using DokanNet;
-using System.Security.AccessControl;
+﻿using Dapper.Contrib.Extensions;
+using DokanNet;
+using SpawnDev.DB;
 using SpawnDev.WebFS.DokanAsync;
+using System.Diagnostics;
+using System.Security.AccessControl;
 using FileAccess = DokanNet.FileAccess;
 using FileOptions = System.IO.FileOptions;
-using SpawnDev.DB;
-using Dapper.Contrib.Extensions;
 
 namespace SpawnDev.WebFS.Host
 {
@@ -61,12 +62,11 @@ namespace SpawnDev.WebFS.Host
                 Host = host,
                 FirstSeen = DateTimeOffset.Now,
                 LastSeen = DateTimeOffset.Now,
-                Url = wsConn.RequestOrigin.GetLeftPart(UriPartial.Authority)
+                Url = wsConn.RequestOrigin.ToString()
             };
             conn.Insert<DomainProvider>(perm);
             return perm;
         }
-
         private void WebSocketServer_OnDisconnected(WebSocketServer sender, WebSocketConnection conn)
         {
             Console.WriteLine($"WebSocketServer_OnDisconnected: {conn.ConnectionId}");
@@ -80,6 +80,12 @@ namespace SpawnDev.WebFS.Host
                 value = SaveNewPerm(conn);
                 DomainProviders[conn.RequestOrigin.Host] = value;
                 NewDomainPerm?.Invoke(value);
+            }
+            else
+            {
+                value.LastSeen = DateTimeOffset.Now;
+                value.Url = conn.RequestOrigin.ToString();
+                UpdateDomainPerm(value);
             }
         }
         public DomainProvider? GetDomainAllowed(string host)

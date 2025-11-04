@@ -43,7 +43,7 @@ namespace SpawnDev.WebFS.Tray
             builder.Services.AddSingleton<AppDB>();
             // Dokan Service
             builder.Services.AddSingleton<WebFSServer>();
-            builder.Services.AddSingleton<DokanService>();
+            builder.Services.AddSingleton<WebFSHost>();
             // Build
             var host = builder.Build();
             return host;
