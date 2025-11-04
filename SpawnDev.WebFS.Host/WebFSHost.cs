@@ -1,6 +1,7 @@
 ﻿using DokanNet;
 using DokanNet.Logging;
 using SpawnDev.BlazorJS;
+using SpawnDev.DB;
 using SpawnDev.WebFS.DokanAsync;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
@@ -25,14 +26,50 @@ namespace SpawnDev.WebFS.Host
                 }
             }
         }
-        string _MountPoint = @"q:\";
+        string _MountPoint = @"";
         ConsoleLogger? dokanLogger;
         Dokan? dokan;
         DokanInstance? dokanInstance;
-        public WebFSHost(WebFSServer webFSServer)
+        AppDB AppDB;
+        public WebFSHost(AppDB appDB, WebFSServer webFSServer)
         {
+            AppDB = appDB;
             WebFSServer = webFSServer;
-            MountPoint = @"q:\";
+        }
+        void FindMountPoint()
+        {
+            var available = FindUnusedDriveLetters();
+            var lastMountPoint = AppDB.GetSetting<string?>(nameof(MountPoint));
+            if (!string.IsNullOrEmpty(lastMountPoint) && lastMountPoint.Contains(lastMountPoint[0], StringComparison.OrdinalIgnoreCase))
+            {
+                MountPoint = lastMountPoint;
+                return;
+            }
+            if (available.Any())
+            {
+                MountPoint = $@"{available.Last()}:\";
+                return;
+            }
+            throw new Exception("No drive letter available.");
+        }
+        public static List<char> FindUnusedDriveLetters()
+        {
+            // Get all possible drive letters (A-Z)
+            List<char> allPossibleDriveLetters = Enumerable.Range('A', 'Z' - 'A' + 1)
+                                                        .Select(c => (char)c)
+                                                        .ToList();
+
+            // Get currently used logical drive letters
+            List<char> usedDriveLetters = DriveInfo.GetDrives()
+                                                .Select(d => d.Name[0]) // Extract the drive letter from "C:\"
+                                                .ToList();
+
+            // Find the letters present in allPossibleDriveLetters but not in usedDriveLetters
+            List<char> unusedDriveLetters = allPossibleDriveLetters
+                                            .Except(usedDriveLetters)
+                                            .ToList();
+
+            return unusedDriveLetters;
         }
         public void OpenMountPoint()
         {
@@ -91,6 +128,7 @@ namespace SpawnDev.WebFS.Host
         {
             try
             {
+                FindMountPoint();
                 dokanLogger = new ConsoleLogger("[Dokan] ");
                 dokan = new Dokan(dokanLogger);
                 var dokanBuilder = new DokanInstanceBuilder(dokan)
@@ -101,6 +139,7 @@ namespace SpawnDev.WebFS.Host
                     });
                 dokanInstance = dokanBuilder.Build(WebFSServer);
                 Console.WriteLine(@"Success");
+                AppDB.SetSetting<string?>(nameof(MountPoint), MountPoint);
                 return;
             }
             catch (DokanException ex)

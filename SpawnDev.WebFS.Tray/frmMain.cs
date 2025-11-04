@@ -72,7 +72,14 @@ namespace SpawnDev.WebFS.Tray
             _sysTray.ContextMenuStrip = new ContextMenuStrip();
             _sysTray.ContextMenuStrip.Opening += (s, e) =>
             {
-                UpdateMenu();
+                try
+                {
+                    UpdateMenu();
+                }
+                catch (Exception ex)
+                {
+                    var nmt = true;
+                }
             };
 
             // Domains
