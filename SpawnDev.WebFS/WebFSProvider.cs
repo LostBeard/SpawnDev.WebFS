@@ -1,14 +1,15 @@
 ﻿using DokanNet;
+using Microsoft.AspNetCore.Components;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.JSObjects;
 using SpawnDev.BlazorJS.Toolbox;
 using SpawnDev.BlazorJS.WebWorkers;
+using SpawnDev.WebFS.DokanAsync;
+using System;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
-using SpawnDev.WebFS.DokanAsync;
 using FileAccess = DokanNet.FileAccess;
 using FileOptions = System.IO.FileOptions;
-using Microsoft.AspNetCore.Components;
 
 namespace SpawnDev.WebFS
 {
@@ -530,19 +531,12 @@ namespace SpawnDev.WebFS
         public async Task<DokanAsyncResult> SetAllocationSize(string filename, long length, AsyncDokanFileInfo info)
         {
             JS.Log($"SetAllocationSize: {info.OpId} {filename}", info);
-
-            return DokanResult.Error;
-        }
-        /// <inheritdoc/>
-        public async Task<DokanAsyncResult> SetEndOfFile(string filename, long length, AsyncDokanFileInfo info)
-        {
-            JS.Log($"SetEndOfFile: {info.OpId} {filename}", info);
             if (GetContext(info.OpId, out var ct))
             {
                 try
                 {
-                    using var st = await GetPathFileHandle(filename, true);
-                    using var str = await st!.CreateWritable();
+                    using var st = await GetPathFileHandle(filename);
+                    using var str = await st!.CreateWritable(new FileSystemCreateWritableOptions { KeepExistingData = true });
                     if (info.WriteToEndOfFile)
                     {
                         var nmt = true;
@@ -551,6 +545,36 @@ namespace SpawnDev.WebFS
                     {
                         await str.Seek((ulong)length);
                     }
+                    await str.Close();
+                    JS.Log($"Allocated {length} bytes to {filename}");
+                    return DokanResult.Success;
+                }
+                catch (Exception ex)
+                {
+
+                }
+            }
+            return DokanResult.Error;
+        }
+        /// <inheritdoc/>
+        public async Task<DokanAsyncResult> SetEndOfFile(string filename, long length, AsyncDokanFileInfo info)
+        {
+            JS.Log($"SetEndOfFile: {info.OpId} {filename} {length}", info);
+            if (GetContext(info.OpId, out var ct))
+            {
+                try
+                {
+                    using var st = await GetPathFileHandle(filename, true);
+                    using var str = await st!.CreateWritable(new FileSystemCreateWritableOptions { KeepExistingData = true });
+                    if (info.WriteToEndOfFile)
+                    {
+                        var nmt = true;
+                    }
+                    if (length > 0)
+                    {
+                        await str.Seek((ulong)length);
+                    }
+                    await str.Close();
                     return DokanResult.Success;
                 }
                 catch (Exception ex)
