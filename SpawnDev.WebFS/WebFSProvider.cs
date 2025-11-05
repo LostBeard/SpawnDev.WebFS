@@ -535,7 +535,7 @@ namespace SpawnDev.WebFS
             {
                 try
                 {
-                    using var st = await GetPathFileHandle(filename);
+                    using var st = await GetPathFileHandle(filename, true);
                     using var str = await st!.CreateWritable(new FileSystemCreateWritableOptions { KeepExistingData = true });
                     if (info.WriteToEndOfFile)
                     {
