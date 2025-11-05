@@ -47,9 +47,7 @@ namespace SpawnDev.WebFS
         }
         async Task InitAsync()
         {
-            await WebFSProvider.Ready;
-
-			_ = Task.Run(() => Connect());
+            _ = Connect();
         }
         WebFSEndpoint GetConnectEndpoint()
         {

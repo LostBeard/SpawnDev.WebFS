@@ -12,41 +12,41 @@ using Microsoft.AspNetCore.Components;
 
 namespace SpawnDev.WebFS
 {
+    /// <summary>
+    /// Demo WebFS filesystem provider.<br/>
+    /// Provides access the the browsers Origin private file system.<br/>
+    /// </summary>
     [RemoteCallable]
-    public class WebFSProvider : IAsyncDokanOperations, IAsyncBackgroundService
+    public class WebFSProvider : IAsyncDokanOperations, IBackgroundService
     {
-        Task? _Ready;
-        /// <inheritdoc/>
-        public Task Ready => _Ready ??= InitAsync();
         BlazorJSRuntime JS;
+        /// <summary>
+        /// The host name serving this app
+        /// </summary>
         public string Host { get; }
+        /// <summary>
+        /// Called when a file context is opened
+        /// </summary>
+        public event Action<OpenFileContext> OnFileOpened = default!;
+        /// <summary>
+        /// Called when a file context is closed
+        /// </summary>
+        public event Action<OpenFileContext> OnFileClosed = default!;
+        /// <summary>
+        /// Storage manager provides access to the file system source this WWebFS provider uses
+        /// </summary>
+        protected StorageManager StorageManager { get; }
+        /// <summary>
+        /// New instance
+        /// </summary>
+        /// <param name="js"></param>
+        /// <param name="navigationManager"></param>
         public WebFSProvider(BlazorJSRuntime js, NavigationManager navigationManager)
         {
             JS = js;
             Host = new Uri(navigationManager.BaseUri).Host;
-        }
-        async Task InitAsync()
-        {
-            //using var navigator = JS.Get<Navigator>("navigator");
-            //FS = await navigator.Storage.GetDirectory();
-        }
-        public async Task<FileSystemHandle?> GetPathHandle(string? path = null)
-        {
-            var navigator = JS.Get<Navigator>("navigator");
-            var fsRoot = await navigator.Storage.GetDirectory();
-            return string.IsNullOrEmpty(path) ? fsRoot : await fsRoot.GetPathHandle(path);
-        }
-        public async Task<FileSystemFileHandle?> GetPathFileHandle(string path, bool create = false)
-        {
-            var navigator = JS.Get<Navigator>("navigator");
-            var fsRoot = await navigator.Storage.GetDirectory();
-            return string.IsNullOrEmpty(path) ? null : await fsRoot.GetPathFileHandle(path, create);
-        }
-        public async Task<FileSystemDirectoryHandle?> GetPathDirectoryHandle(string? path = null, bool create = false)
-        {
-            var navigator = JS.Get<Navigator>("navigator");
-            var fsRoot = await navigator.Storage.GetDirectory();
-            return string.IsNullOrEmpty(path) ? fsRoot : await fsRoot.GetPathDirectoryHandle(path, create);
+            using var navigator = JS.Get<Navigator>("navigator");
+            StorageManager = navigator.Storage;
         }
         public async Task Cleanup(string filename, AsyncDokanFileInfo info)
         {
@@ -58,13 +58,12 @@ namespace SpawnDev.WebFS
             //JS.Log($"CloseFile: {info.OpId} {filename}", info);
             await CloseContext(info.OpId);
         }
-        Dictionary<string, OpenFileContext> _openFiles = new Dictionary<string, OpenFileContext>();
+        protected Dictionary<string, OpenFileContext> _openFiles = new Dictionary<string, OpenFileContext>();
         /// <summary>
         /// Currently open files
         /// </summary>
         public List<OpenFileContext> OpenFiles => _openFiles.Values.ToList();
-
-        OpenFileContext GetContext(string filename, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
+        protected OpenFileContext CreateContext(string filename, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
         {
             var openFile = new OpenFileContext(filename, access, share, mode, options, attributes, info);
             openFile.Info = info;
@@ -72,7 +71,7 @@ namespace SpawnDev.WebFS
             OnFileOpened?.Invoke(openFile);
             return openFile;
         }
-        bool GetContext(string opid, out OpenFileContext? openFile)
+        protected bool GetContext(string opid, out OpenFileContext? openFile)
         {
             if (_openFiles.TryGetValue(opid, out openFile))
             {
@@ -80,15 +79,7 @@ namespace SpawnDev.WebFS
             }
             return false;
         }
-        /// <summary>
-        /// 
-        /// </summary>
-        public event Action<OpenFileContext> OnFileOpened = default!;
-        /// <summary>
-        /// 
-        /// </summary>
-        public event Action<OpenFileContext> OnFileClosed = default!;
-        async Task CloseContext(string opid)
+        protected async Task CloseContext(string opid)
         {
             if (_openFiles.TryGetValue(opid, out var openFile))
             {
@@ -110,7 +101,7 @@ namespace SpawnDev.WebFS
                 OnFileClosed?.Invoke(openFile);
             }
         }
-        public T Trace<T>(string method, OpenFileContext? openFile, T result) where T : DokanAsyncResult
+        protected T Trace<T>(string method, OpenFileContext? openFile, T result) where T : DokanAsyncResult
         {
             if (method != nameof(CreateFile))
             {
@@ -134,9 +125,36 @@ namespace SpawnDev.WebFS
             }
             return result;
         }
+
+        public async Task<FileSystemHandle?> GetPathHandle(string? path = null)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return await StorageManager.GetDirectory();
+            }
+            using var fsRoot = await StorageManager.GetDirectory();
+            return await fsRoot.GetPathHandle(path);
+        }
+        public async Task<FileSystemFileHandle?> GetPathFileHandle(string path, bool create = false)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+            using var fsRoot = await StorageManager.GetDirectory();
+            return await fsRoot.GetPathFileHandle(path, create);
+        }
+        public async Task<FileSystemDirectoryHandle?> GetPathDirectoryHandle(string? path = null, bool create = false)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return await StorageManager.GetDirectory();
+            }
+            using var fsRoot = await StorageManager.GetDirectory();
+            return await fsRoot.GetPathDirectoryHandle(path, create);
+        }
+
+        /// <inheritdoc/>
         public async Task<CreateFileResult> CreateFile(string filename, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
         {
-            var ct = GetContext(filename, access, share, mode, options, attributes, info);
+            var ct = CreateContext(filename, access, share, mode, options, attributes, info);
             try
             {
                 using var FS = await GetPathDirectoryHandle();
@@ -260,15 +278,16 @@ namespace SpawnDev.WebFS
 
             }
         }
-        private const FileAccess DataAccess = FileAccess.ReadData | FileAccess.WriteData | FileAccess.AppendData |
+        protected const FileAccess DataAccess = FileAccess.ReadData | FileAccess.WriteData | FileAccess.AppendData |
                                               FileAccess.Execute |
                                               FileAccess.GenericExecute | FileAccess.GenericWrite |
                                               FileAccess.GenericRead;
 
-        private const FileAccess DataWriteAccess = FileAccess.WriteData | FileAccess.AppendData |
+        protected const FileAccess DataWriteAccess = FileAccess.WriteData | FileAccess.AppendData |
                                                    FileAccess.Delete |
                                                    FileAccess.GenericWrite;
 
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> DeleteDirectory(string filename, AsyncDokanFileInfo info)
         {
             JS.Log($"DeleteDirectory: {info.OpId} {filename}", info);
@@ -302,6 +321,7 @@ namespace SpawnDev.WebFS
             }
             return DokanResult.Error;
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> DeleteFile(string filename, AsyncDokanFileInfo info)
         {
             JS.Log($"DeleteFile: {info.OpId} {filename}", info);
@@ -335,6 +355,7 @@ namespace SpawnDev.WebFS
             }
             return DokanResult.Error;
         }
+        /// <inheritdoc/>
         public async Task<FindFilesResult> FindFiles(string filename, AsyncDokanFileInfo info)
         {
             JS.Log($"FindFiles: {info.OpId} {filename}", info);
@@ -387,18 +408,21 @@ namespace SpawnDev.WebFS
             }
             return Trace<FindFilesResult>(nameof(FindFiles), null, DokanResult.Error);
         }
+        /// <inheritdoc/>
         public async Task<FindFilesResult> FindFilesWithPattern(string filename, string searchPattern, AsyncDokanFileInfo info)
         {
             JS.Log($"FindFilesWithPattern: {info.OpId} {filename}", info);
 
             return DokanResult.NotImplemented;
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> FlushFileBuffers(string filename, AsyncDokanFileInfo info)
         {
             JS.Log($"FlushFileBuffers: {info.OpId} {filename}", info);
 
             return DokanResult.NotImplemented;
         }
+        /// <inheritdoc/>
         public async Task<GetFileInformationResult> GetFileInformation(string filename, AsyncDokanFileInfo info)
         {
             JS.Log($"GetFileInformation: {info.OpId} {filename}", info);
@@ -426,17 +450,20 @@ namespace SpawnDev.WebFS
             fileinfo.Length = length;
             return Trace<GetFileInformationResult>(nameof(GetFileInformation), ct, new GetFileInformationResult(DokanResult.Success, fileinfo));
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> LockFile(string filename, long offset, long length, AsyncDokanFileInfo info)
         {
             JS.Log($"LockFile: {info.OpId} {filename}", info);
 
             return DokanResult.NotImplemented;
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> UnlockFile(string filename, long offset, long length, AsyncDokanFileInfo info)
         {
             JS.Log($"UnlockFile: {info.OpId} {filename}", info);
             return DokanResult.NotImplemented;
         }
+        /// <inheritdoc/>
         public async Task<ReadFileResult> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
         {
             JS.Log($"ReadFile: {info.OpId} {filename}", info);
@@ -469,6 +496,7 @@ namespace SpawnDev.WebFS
             }
             return DokanResult.Error;
         }
+        /// <inheritdoc/>
         public async Task<WriteFileResult> WriteFile(string filename, byte[] buffer, long offset, AsyncDokanFileInfo info)
         {
             JS.Log($"WriteFile: {info.OpId} {filename}", offset, info);
@@ -498,12 +526,14 @@ namespace SpawnDev.WebFS
             }
             return DokanResult.Error;
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetAllocationSize(string filename, long length, AsyncDokanFileInfo info)
         {
             JS.Log($"SetAllocationSize: {info.OpId} {filename}", info);
 
             return DokanResult.Error;
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetEndOfFile(string filename, long length, AsyncDokanFileInfo info)
         {
             JS.Log($"SetEndOfFile: {info.OpId} {filename}", info);
@@ -530,50 +560,98 @@ namespace SpawnDev.WebFS
             }
             return DokanResult.Error;
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetFileAttributes(string filename, FileAttributes attributes, AsyncDokanFileInfo info)
         {
             JS.Log($"SetFileAttributes: {info.OpId} {filename}", info);
 
             return DokanResult.Success;
         }
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetFileTime(string filename, DateTime? creationTime, DateTime? lastAccessTime, DateTime? lastWriteTime, AsyncDokanFileInfo info)
         {
             JS.Log($"SetFileTime: {info.OpId} {filename}", info);
 
             return DokanResult.Success;
         }
-        #region Not supported
+        /// <inheritdoc/>
         public async Task<DokanAsyncResult> MoveFile(string oldName, string newName, bool replace, AsyncDokanFileInfo info)
         {
-            throw new NotImplementedException();
+            // TODO - renaming a folder uses this (among other things.) this needs to be implemented
+            using var srcHandle = await GetPathHandle(oldName);
+            if (srcHandle is FileSystemFileHandle fHandle)
+            {
+                // FileSystemHandles do not currently support renaming or moving (though it is planned for the Origin private file system)
+                // the data currently has to be copied to the new file
+                // this is a simple read write of the data, large files would need better handling
+                try
+                {
+                    using var fsRoot = await GetPathDirectoryHandle();
+                    using var newFile = await GetPathFileHandle(newName, true);
+                    using var data = await fHandle.ReadArrayBuffer();
+                    await newFile!.Write(data);
+                    await fsRoot!.RemovePath(oldName);
+                    return DokanResult.Success;
+                }
+                catch { }
+            }
+            else if (srcHandle is FileSystemDirectoryHandle dHandle)
+            {
+                var isEmpty = !(await dHandle.KeysList()).Any();
+                if (isEmpty)
+                {
+                    // moving an empty folder is a simple create the new and delete the old. no content to deal with.
+                    try
+                    {
+                        using var fsRoot = await GetPathDirectoryHandle();
+                        await fsRoot!.CreatePathDirectory(newName);
+                        await fsRoot!.RemovePath(oldName);
+                        return DokanResult.Success;
+                    }
+                    catch { }
+                }
+                else
+                {
+                    return DokanResult.DirectoryNotEmpty;
+                }
+            }
+            return DokanResult.NotImplemented;
         }
-        public async Task<GetFileSecurityResult> GetFileSecurity(string filename, AccessControlSections sections, AsyncDokanFileInfo info)
+        #region Not supported
+        /// <inheritdoc/>
+        public Task<GetFileSecurityResult> GetFileSecurity(string filename, AccessControlSections sections, AsyncDokanFileInfo info)
         {
             throw new NotImplementedException();
         }
-        public async Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurity security, AccessControlSections sections, AsyncDokanFileInfo info)
+        /// <inheritdoc/>
+        public Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurity security, AccessControlSections sections, AsyncDokanFileInfo info)
         {
             throw new NotImplementedException();
         }
-        public async Task<FindStreamsResult> FindStreams(string filename, AsyncDokanFileInfo info)
+        /// <inheritdoc/>
+        public Task<FindStreamsResult> FindStreams(string filename, AsyncDokanFileInfo info)
         {
             throw new NotImplementedException();
         }
         #endregion
         #region Drive ops
-        public async Task<GetDiskFreeSpaceResult> GetDiskFreeSpace(AsyncDokanFileInfo info)
+        /// <inheritdoc/>
+        public Task<GetDiskFreeSpaceResult> GetDiskFreeSpace(AsyncDokanFileInfo info)
         {
             throw new NotImplementedException();
         }
-        public async Task<GetVolumeInformationResult> GetVolumeInformation(AsyncDokanFileInfo info)
+        /// <inheritdoc/>
+        public Task<GetVolumeInformationResult> GetVolumeInformation(AsyncDokanFileInfo info)
         {
             throw new NotImplementedException();
         }
+        /// <inheritdoc/>
         public Task<DokanAsyncResult> Unmounted(AsyncDokanFileInfo info)
         {
             throw new NotImplementedException();
         }
-        public async Task<DokanAsyncResult> Mounted(string mountPoint, AsyncDokanFileInfo info)
+        /// <inheritdoc/>
+        public Task<DokanAsyncResult> Mounted(string mountPoint, AsyncDokanFileInfo info)
         {
             throw new NotImplementedException();
         }

@@ -5,40 +5,10 @@ using SpawnDev.DB;
 using SpawnDev.WebFS.DokanAsync;
 using System.Diagnostics;
 using System.Management;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace SpawnDev.WebFS.Host
 {
-    public static class NativeMethods
-    {
-        // Drive Types constants
-        private const int DRIVE_UNKNOWN = 0;
-        private const int DRIVE_NO_ROOT_DIR = 1; // Indicator for disconnected network drive
-        private const int DRIVE_REMOVABLE = 2;
-        private const int DRIVE_FIXED = 3;
-        private const int DRIVE_REMOTE = 4;
-        private const int DRIVE_CDROM = 5;
-        private const int DRIVE_RAMDISK = 6;
-
-        /// <summary>
-        /// Retrieves the drive type.
-        /// </summary>
-        /// <param name="lpRootPathName">A null-terminated string that specifies the root directory.</param>
-        /// <returns>The drive type constant.</returns>
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        public static extern int GetDriveType(string lpRootPathName);
-
-        // Helper to check for the disconnected state
-        public static bool IsDisconnectedNetworkDrive(string driveLetter)
-        {
-            // GetDriveType expects the root path format, e.g., "Z:\\"
-            string rootPath = driveLetter.ToUpper() + @":\\";
-
-            // DRIVE_NO_ROOT_DIR is the key indicator for a logically mapped but disconnected drive
-            return GetDriveType(rootPath) == DRIVE_NO_ROOT_DIR;
-        }
-    }
     public class WebFSHost : IAsyncBackgroundService, IDisposable
     {
         public Task Ready => _Ready ??= InitAsync();
@@ -188,17 +158,18 @@ namespace SpawnDev.WebFS.Host
         }
         async Task InitAsync()
         {
-            await Task.Delay(100);
             _ = Task.Run(async () =>
             {
                 await Task.Delay(100);
-                var threadId = Thread.CurrentThread.ManagedThreadId;
-                Console.WriteLine($"Starting DokanService ThreadId: {threadId}");
                 StartIt();
             });
         }
+        public bool Running { get; private set; }
+        public bool Starting { get; private set; }
         public void StartIt()
         {
+            if (Starting || Running) return;
+            Starting = true;
             try
             {
                 FindMountPoint();
@@ -213,6 +184,8 @@ namespace SpawnDev.WebFS.Host
                 dokanInstance = dokanBuilder.Build(WebFSServer);
                 Console.WriteLine(@"Success");
                 AppDB.SetSetting<string?>(nameof(MountPoint), MountPoint);
+                Running = true;
+                Starting = false;
                 return;
             }
             catch (DokanException ex)
@@ -226,20 +199,28 @@ namespace SpawnDev.WebFS.Host
             // failed. cleanup.
             StopIt();
         }
+        public event Action OnStarted = default!;
+        public event Action OnStopped = default!;
         public void StopIt()
         {
+            if (!Starting && !Running) return;
             if (dokanInstance != null)
             {
                 dokanInstance.Dispose();
+                dokanInstance = null;
             }
             if (dokan != null)
             {
                 dokan.Dispose();
+                dokan = null;
             }
             if (dokanLogger != null)
             {
                 dokanLogger.Dispose();
+                dokanLogger = null;
             }
+            Starting = false;
+            Running = false;
         }
         public void Dispose()
         {

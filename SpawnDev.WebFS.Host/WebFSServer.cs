@@ -2,7 +2,6 @@
 using DokanNet;
 using SpawnDev.DB;
 using SpawnDev.WebFS.DokanAsync;
-using System.Diagnostics;
 using System.Security.AccessControl;
 using FileAccess = DokanNet.FileAccess;
 using FileOptions = System.IO.FileOptions;
@@ -66,12 +65,6 @@ namespace SpawnDev.WebFS.Host
             conn.CreateTableIfNotExists<DomainProvider>();
             DomainProviders = conn.GetAll<DomainProvider>().ToDictionary(o => o.Host, o => o);
             WebSocketServer.StartListening();
-        }
-        DomainProvider? GetDomainPerm(string host)
-        {
-            using var conn = AppDB.GetConn();
-            var ret = conn.Get<DomainProvider>(host);
-            return ret;
         }
         void UpdateDomainPerm(DomainProvider perm)
         {
@@ -552,7 +545,32 @@ namespace SpawnDev.WebFS.Host
             // check the hsots of both paths
             // if they are the same, send the move event to that host and let it handle it,
             // otherwise, manually copy the file ...
-            return DokanResult.NotImplemented;
+            var succ1 = GetProvider(filename, out var fHost, out var fPath, out var conn);
+            var succ2 = GetProvider(newname, out var fHostNew, out var fPathNew, out var connNew);
+            if (succ1 && succ2 && conn == connNew)
+            {
+                if (!string.IsNullOrEmpty(fPath))
+                {
+                    try
+                    {
+                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.MoveFile(fPath, fPathNew, replace, info));
+                        if (tmp != null)
+                        {
+                            return tmp;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        return DokanResult.Error;
+                    }
+                }
+            }
+            else
+            {
+                // TODO
+                var nmt = true;
+            }
+            return DokanResult.Error;
         }
         public async Task<GetFileSecurityResult> GetFileSecurity(string filename, AccessControlSections sections, AsyncDokanFileInfo info)
         {
