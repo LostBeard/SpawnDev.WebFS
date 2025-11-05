@@ -600,7 +600,7 @@ namespace SpawnDev.WebFS
                 var isEmpty = !(await dHandle.KeysList()).Any();
                 if (isEmpty)
                 {
-                    // moving an empty folder is a simple create the new and delete the old. no content to deal with.
+                    // moving an empty folder is a simple 'create the new and delete the old'. no content to deal with.
                     try
                     {
                         using var fsRoot = await GetPathDirectoryHandle();
@@ -612,7 +612,10 @@ namespace SpawnDev.WebFS
                 }
                 else
                 {
-                    return DokanResult.DirectoryNotEmpty;
+                    // TODO
+                    // Create the new directory
+                    // move over files and folders (requires copying)
+                    // ....
                 }
             }
             return DokanResult.NotImplemented;
