@@ -5,30 +5,36 @@
 <PageTitle>Home</PageTitle>
 
 <div>
-    <div>
-        Path: @($@"\{WebFSProvider.Host}\{path}\".TrimEnd('\\'))
+    <div style="padding: 1rem;">
+        Demonstrates <a href="https://github.com/LostBeard/SpawnDev.WebFS">SpawnDev.WebFS</a> by providing read and write access to the browser's <a href="https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system">Origin private file system</a>.
     </div>
-    <div>
+    <div style="padding: 1rem;">
+        WebFS Tray: @(WebFSClient.Connected ? "connected" : "not connected... is WebFS Tray running?")
+    </div>
+    <div style="padding: 1rem;">
+        <div>
+            Path: @($@"\{WebFSProvider.Host}\{path}\".TrimEnd('\\'))
+        </div>
         @foreach (var dir in dirs)
         {
             <div>
-                @($@"{dir}\")
+                - @($@"{dir}\")
             </div>
         }
         @foreach (var file in files)
         {
             <div>
-                @file
+                - @file
             </div>
         }
         <div>
-            Total: @(files.Count + dirs.Count)
+            Total: @files.Count Files @dirs.Count Dirs
         </div>
     </div>
     <div>
-        Open files: @WebFSProvider.OpenFiles.Count
-    </div>
-    <div>
+        <div style="padding: 1rem;">
+            Open files: @WebFSProvider.OpenFiles.Count
+        </div>
         @foreach (var openFile in WebFSProvider.OpenFiles)
         {
             <div>
@@ -43,6 +49,9 @@
 
     [Inject]
     WebFSProvider WebFSProvider { get; set; } = default!;
+
+    [Inject]
+    WebFSClient WebFSClient { get; set; } = default!;
 
     string path = "";
     List<string> files = new List<string>();
@@ -60,11 +69,23 @@
     {
         WebFSProvider.OnFileOpened += WebFSProvider_OnFileOpened;
         WebFSProvider.OnFileClosed += WebFSProvider_OnFileClosed;
+        WebFSClient.OnConnected += WebFSClient_OnConnected;
+        WebFSClient.OnDisconnected += WebFSClient_OnDisconnected;
+    }
+    void WebFSClient_OnConnected(WebFSClient webFSClient)
+    {
+        StateHasChanged();
+    }
+    void WebFSClient_OnDisconnected(WebFSClient webFSClient)
+    {
+        StateHasChanged();
     }
     public void Dispose()
     {
         WebFSProvider.OnFileOpened -= WebFSProvider_OnFileOpened;
         WebFSProvider.OnFileClosed -= WebFSProvider_OnFileClosed;
+        WebFSClient.OnConnected -= WebFSClient_OnConnected;
+        WebFSClient.OnDisconnected -= WebFSClient_OnDisconnected;
     }
     void WebFSProvider_OnFileOpened(OpenFileContext openFile)
     {
