@@ -150,7 +150,7 @@ namespace SpawnDev.WebFS.Tray
                 }
             }
             if (_recentMI == null) return;
-            _recentMI.Text = $"Domains {WebFSServer.Status}";
+            _recentMI.Text = $"Domains: {WebFSServer.Status}";
             _recentMI.DropDownItems.Clear();
             var connectedHosts = WebFSServer.ConnectedDomains;
             foreach (var provider in WebFSServer.DomainProviders.Values)
