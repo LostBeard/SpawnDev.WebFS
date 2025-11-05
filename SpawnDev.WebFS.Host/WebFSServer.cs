@@ -16,7 +16,7 @@ namespace SpawnDev.WebFS.Host
         public int ConnectedDomainsEnabled => EnabledConnections.Select(o => o.RequestOrigin.Host).Distinct().Count();
         public int ConnectedDomainsUndecided => UndecidedConnections.Select(o => o.RequestOrigin.Host).Distinct().Count();
         public int ConnectedDomainsDisabled => DisabledConnections.Select(o => o.RequestOrigin.Host).Distinct().Count();
-        public string Status => $"{ConnectedDomainsUndecided} ❓ / {ConnectedDomainsDisabled} ❌ / {ConnectedDomainsEnabled} ✔️";
+        public string Status => $"{ConnectedDomainsUndecided}❓ {ConnectedDomainsEnabled}✔️ {ConnectedDomainsDisabled}❌";
         public List<string> ConnectedDomains => WebSocketServer.Connections.Select(o => o.RequestOrigin.Host).ToList();
         public List<WebSocketConnection> UndecidedConnections
         {
