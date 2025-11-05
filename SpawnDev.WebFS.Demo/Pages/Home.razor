@@ -1,7 +1,90 @@
 ﻿@page "/"
+@using SpawnDev.BlazorJS.Toolbox
+@implements IDisposable
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<div>
+    <div>
+        Path: @($@"\{WebFSProvider.Host}\{path}\".TrimEnd('\\'))
+    </div>
+    <div>
+        @foreach (var dir in dirs)
+        {
+            <div>
+                @($@"{dir}\")
+            </div>
+        }
+        @foreach (var file in files)
+        {
+            <div>
+                @file
+            </div>
+        }
+        <div>
+            Total: @(files.Count + dirs.Count)
+        </div>
+    </div>
+    <div>
+        Open files: @WebFSProvider.OpenFiles.Count
+    </div>
+    <div>
+        @foreach (var openFile in WebFSProvider.OpenFiles)
+        {
+            <div>
+                @($@"\{WebFSProvider.Host}\{openFile.Filename}\".TrimEnd('\\'))
+            </div>
+        }
+    </div>
+</div>
 
-Welcome to your new app.
+
+@code {
+
+    [Inject]
+    WebFSProvider WebFSProvider { get; set; } = default!;
+
+    string path = "";
+    List<string> files = new List<string>();
+    List<string> dirs = new List<string>();
+
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ = Refresh();
+        }
+    }
+    protected override void OnInitialized()
+    {
+        WebFSProvider.OnFileOpened += WebFSProvider_OnFileOpened;
+        WebFSProvider.OnFileClosed += WebFSProvider_OnFileClosed;
+    }
+    public void Dispose()
+    {
+        WebFSProvider.OnFileOpened -= WebFSProvider_OnFileOpened;
+        WebFSProvider.OnFileClosed -= WebFSProvider_OnFileClosed;
+    }
+    void WebFSProvider_OnFileOpened(OpenFileContext openFile)
+    {
+        _ = Refresh();
+    }
+    void WebFSProvider_OnFileClosed(OpenFileContext openFile)
+    {
+        _ = Refresh();
+    }
+    async Task Refresh()
+    {
+        // dirs.Clear();
+        // files.Clear();
+        // StateHasChanged();
+        using var rootHandle = await WebFSProvider.GetPathDirectoryHandle(path);
+        if (rootHandle != null)
+        {
+            dirs = await rootHandle.GetPathDirectories();
+            files = await rootHandle.GetPathFiles();
+        }
+        StateHasChanged();
+    }
+}

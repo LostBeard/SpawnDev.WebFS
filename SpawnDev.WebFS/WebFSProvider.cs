@@ -8,6 +8,7 @@ using System.Security.AccessControl;
 using SpawnDev.WebFS.DokanAsync;
 using FileAccess = DokanNet.FileAccess;
 using FileOptions = System.IO.FileOptions;
+using Microsoft.AspNetCore.Components;
 
 namespace SpawnDev.WebFS
 {
@@ -18,29 +19,30 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public Task Ready => _Ready ??= InitAsync();
         BlazorJSRuntime JS;
-        public WebFSProvider(BlazorJSRuntime js)
+        public string Host { get; }
+        public WebFSProvider(BlazorJSRuntime js, NavigationManager navigationManager)
         {
             JS = js;
+            Host = new Uri(navigationManager.BaseUri).Host;
         }
-        //FileSystemDirectoryHandle FS;
         async Task InitAsync()
         {
             //using var navigator = JS.Get<Navigator>("navigator");
             //FS = await navigator.Storage.GetDirectory();
         }
-        async Task<FileSystemHandle?> GetPathHandle(string? path = null)
+        public async Task<FileSystemHandle?> GetPathHandle(string? path = null)
         {
             var navigator = JS.Get<Navigator>("navigator");
             var fsRoot = await navigator.Storage.GetDirectory();
             return string.IsNullOrEmpty(path) ? fsRoot : await fsRoot.GetPathHandle(path);
         }
-        async Task<FileSystemFileHandle?> GetPathFileHandle(string path, bool create = false)
+        public async Task<FileSystemFileHandle?> GetPathFileHandle(string path, bool create = false)
         {
             var navigator = JS.Get<Navigator>("navigator");
             var fsRoot = await navigator.Storage.GetDirectory();
             return string.IsNullOrEmpty(path) ? null : await fsRoot.GetPathFileHandle(path, create);
         }
-        async Task<FileSystemDirectoryHandle?> GetPathDirectoryHandle(string? path = null, bool create = false)
+        public async Task<FileSystemDirectoryHandle?> GetPathDirectoryHandle(string? path = null, bool create = false)
         {
             var navigator = JS.Get<Navigator>("navigator");
             var fsRoot = await navigator.Storage.GetDirectory();
@@ -57,12 +59,17 @@ namespace SpawnDev.WebFS
             await CloseContext(info.OpId);
         }
         Dictionary<string, OpenFileContext> _openFiles = new Dictionary<string, OpenFileContext>();
+        /// <summary>
+        /// Currently open files
+        /// </summary>
+        public List<OpenFileContext> OpenFiles => _openFiles.Values.ToList();
 
         OpenFileContext GetContext(string filename, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
         {
             var openFile = new OpenFileContext(filename, access, share, mode, options, attributes, info);
             openFile.Info = info;
             _openFiles[info.OpId] = openFile;
+            OnFileOpened?.Invoke(openFile);
             return openFile;
         }
         bool GetContext(string opid, out OpenFileContext? openFile)
@@ -73,6 +80,14 @@ namespace SpawnDev.WebFS
             }
             return false;
         }
+        /// <summary>
+        /// 
+        /// </summary>
+        public event Action<OpenFileContext> OnFileOpened = default!;
+        /// <summary>
+        /// 
+        /// </summary>
+        public event Action<OpenFileContext> OnFileClosed = default!;
         async Task CloseContext(string opid)
         {
             if (_openFiles.TryGetValue(opid, out var openFile))
@@ -92,6 +107,7 @@ namespace SpawnDev.WebFS
 
                     }
                 }
+                OnFileClosed?.Invoke(openFile);
             }
         }
         public T Trace<T>(string method, OpenFileContext? openFile, T result) where T : DokanAsyncResult

@@ -11,8 +11,23 @@ namespace SpawnDev.WebFS.Host
 {
     public class WebFSServer : IAsyncDokanOperations
     {
+        public int ConnectedDomainsCount => ConnectedDomains.Count;
+        public int DomainsCount => DomainProviders.Count;
+        public int ConnectedDomainsEnabled => EnabledConnections.Select(o => o.RequestOrigin.Host).Distinct().Count();
+        public int ConnectedDomainsDisabled => DisabledConnections.Select(o => o.RequestOrigin.Host).Distinct().Count();
+        public string Status => $"✔️ {ConnectedDomainsEnabled} / ❌ {ConnectedDomainsDisabled}";
         public List<string> ConnectedDomains => WebSocketServer.Connections.Select(o => o.RequestOrigin.Host).ToList();
-        List<WebSocketConnection> EnabledConnections
+        public List<WebSocketConnection> DisabledConnections
+        {
+            get
+            {
+                var disallowedHosts = DomainProviders.Values.ToList().Where(o => o.Enabled != true).Select(o => o.Host).ToList();
+                var conns = WebSocketServer.Connections.ToList();
+                var disabledConnections = conns.Where(o => disallowedHosts.Contains(o.RequestOrigin.Host)).ToList();
+                return disabledConnections;
+            }
+        }
+        public List<WebSocketConnection> EnabledConnections
         {
             get
             {

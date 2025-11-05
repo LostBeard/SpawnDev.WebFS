@@ -13,12 +13,12 @@ namespace SpawnDev.WebFS.Tray
         ToolStripMenuItem? _recentMI = null;
         ToolStripMenuItem? _openDriveMI = null;
         WinFormsApp WinFormsApp { get; }
-        WebFSHost DokanService { get; }
+        WebFSHost WebFSHost { get; }
         WebFSServer WebFSServer { get; }
         public frmMain(WinFormsApp winFormsApp)
         {
             WinFormsApp = winFormsApp;
-            DokanService = WinFormsApp.Services.GetRequiredService<WebFSHost>();
+            WebFSHost = WinFormsApp.Services.GetRequiredService<WebFSHost>();
             WebFSServer = WinFormsApp.Services.GetRequiredService<WebFSServer>();
             InitializeComponent();
         }
@@ -30,7 +30,6 @@ namespace SpawnDev.WebFS.Tray
             Visible = false;
             ShowInTaskbar = false;
             InitTray();
-
             _ = Task.Run(async () =>
             {
                 await WinFormsApp.Services.StartBackgroundServices();
@@ -82,14 +81,14 @@ namespace SpawnDev.WebFS.Tray
                 }
             };
 
-            // Domains
-            _sysTray.ContextMenuStrip.Items.Add(_recentMI = new ToolStripMenuItem("Domains"));
-
             // Open Drive
             _sysTray.ContextMenuStrip.Items.Add(_openDriveMI = new ToolStripMenuItem("Open Drive ...", null, async (s, e) =>
             {
-                DokanService.OpenMountPoint();
+                WebFSHost.OpenMountPoint();
             }));
+
+            // Domains
+            _sysTray.ContextMenuStrip.Items.Add(_recentMI = new ToolStripMenuItem("Domains"));
 
             #region Autostart
             using var p = Process.GetCurrentProcess();
@@ -140,17 +139,18 @@ namespace SpawnDev.WebFS.Tray
         {
             if (_openDriveMI != null)
             {
-                if (string.IsNullOrEmpty(DokanService.MountPoint))
+                if (string.IsNullOrEmpty(WebFSHost.MountPoint))
                 {
                     _openDriveMI.Enabled = false;
                 }
                 else
                 {
                     _openDriveMI.Enabled = true;
-                    _openDriveMI.Text = $"Open Drive {DokanService.MountPoint.ToUpperInvariant().Substring(0, 2)}";
+                    _openDriveMI.Text = $"Open Drive {WebFSHost.MountPoint.ToUpperInvariant().Substring(0, 2)}";
                 }
             }
             if (_recentMI == null) return;
+            _recentMI.Text = $"Domains {WebFSServer.Status}";
             _recentMI.DropDownItems.Clear();
             var connectedHosts = WebFSServer.ConnectedDomains;
             foreach (var provider in WebFSServer.DomainProviders.Values)
@@ -162,15 +162,15 @@ namespace SpawnDev.WebFS.Tray
                 // Open folder [provider.Host]
                 mm.DropDownItems.Add(new ToolStripMenuItem($"Open folder", null, (s, e) =>
                 {
-                    DokanService.OpenHostFolder(provider);
+                    WebFSHost.OpenHostFolder(provider);
                 })
                 {
-                    Enabled = isConnected && DokanService.GetHostFolderExists(provider)
+                    Enabled = isConnected && WebFSHost.GetHostFolderExists(provider)
                 });
                 // Goto site [provider.Host]
                 mm.DropDownItems.Add(new ToolStripMenuItem($"Goto {provider.Host}", null, (s, e) =>
                 {
-                    DokanService.OpenHostUrl(provider);
+                    WebFSHost.OpenHostUrl(provider);
                 }));
                 // Enable checked/unchecked
                 mm.DropDownItems.Add(new ToolStripMenuItem("Enable", null, (s, e) =>
