@@ -43,7 +43,7 @@
     </div>
     <div style="padding: 1rem;">
         <div>
-            Path: @($@"\{WebFSProvider.Host}\{path}\".TrimEnd('\\'))
+            Path: @($@"\{WebFSClient.Host}\{path}\".TrimEnd('\\'))
         </div>
         @foreach (var dir in dirs)
         {
@@ -61,14 +61,14 @@
             Total: @files.Count Files @dirs.Count Dirs
         </div>
     </div>
-    <div>
+    <div style="min-height: 100rem;">
         <div style="padding: 1rem;">
             Open files: @WebFSProvider.OpenFiles.Count
         </div>
         @foreach (var openFile in WebFSProvider.OpenFiles)
         {
             <div>
-                @($@"\{WebFSProvider.Host}\{openFile.Filename}\".TrimEnd('\\'))
+                @($@"\{WebFSClient.Host}\{openFile.Filename}\".TrimEnd('\\'))
             </div>
         }
     </div>

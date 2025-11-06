@@ -20,7 +20,7 @@ namespace SpawnDev.WebFS
         public Uri RequestUri { get; protected set; }
         private Task DataListenerTask = null;
         public bool IsConnected => WebSocket?.State == WebSocketState.Open;
-        public bool IsClosed => WebSocket?.State == WebSocketState.Closed;
+        public bool IsClosed => State == WebSocketState.Closed;
         public WebSocketState State => WebSocket?.State ?? WebSocketState.Closed;
         public bool IsDisconnecting => WebSocket?.State == WebSocketState.CloseReceived || WebSocket?.State == WebSocketState.CloseSent;
         public HttpListenerContext Context { get; }
@@ -125,7 +125,7 @@ namespace SpawnDev.WebFS
                         {
                             var t = ex.GetType();
 #if DEBUG
-                            Console.WriteLine($"RTLinkShared.Connection.ProcessMessage() IsClient: {ConnectionId} Exception: {ex.Message}");
+                            Console.WriteLine($"RTLinkShared.Tray.ProcessMessage() IsClient: {ConnectionId} Exception: {ex.Message}");
 #endif
                         }
                         if (result != null && result.MessageType == WebSocketMessageType.Close) break;

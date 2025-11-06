@@ -1,6 +1,4 @@
-﻿using DokanNet;
-using System.Security.AccessControl;
-using SpawnDev.WebFS;
+﻿using System.Security.AccessControl;
 using FileAccess = DokanNet.FileAccess;
 
 namespace SpawnDev.WebFS.DokanAsync

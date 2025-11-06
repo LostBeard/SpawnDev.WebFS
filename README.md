@@ -27,5 +27,59 @@ Website file system provider links and descriptions.
 - Access files and folders on your remote devices anywhere using normal apps. 
 - Etc.
 
+## Using SpawnDev.WebFS in a Blazor WebAssembly app
+
+#### WebFS tray app
+The WebFS tray app is required for both development and production use. In development, it may be more useful to use the source project in this repo instead.
+
+#### Blazor WebAssembly
+- Add a reference to the latest `SpawnDev.WebFS` Nuget package using your method of choice.  
+
+`Program.cs` - From demo repo
+```cs
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using SpawnDev.BlazorJS;
+using SpawnDev.WebFS;
+using SpawnDev.WebFS.Demo;
+
+var builder = WebAssemblyHostBuilder.CreateDefault(args);
+builder.RootComponents.Add<App>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
+
+// Add SpawnDev.BlazorJS JS  interop
+builder.Services.AddBlazorJSRuntime(out var JS);
+
+// Registers WebFSProvider, the demo WebFS provider as WebFSProvider and IAsyncDokanOperations
+// Registers WebFSClient which connects to the tray app when its Enabled property is set to true
+builder.Services.AddWebFS<WebFSProvider>();
+
+// Startup using BlazorJSRunAsync
+await builder.Build().BlazorJSRunAsync();
+```
+
+- Implement the `IAsyncDokanOperations` interface in your custom provider and set WebFSClient.Enabled = true when ready  
+`WebFSProvider.cs` - From demo repo
+```cs
+    /// <summary>
+    /// Demo WebFS filesystem provider.<br/>
+    /// Provides access the the browsers Origin private file system.<br/>
+    /// IBackgroundService sets this service to autostart when the Blazor WASM web app loads
+    /// </summary>
+    [RemoteCallable]
+    public class WebFSProvider : IAsyncDokanOperations, IBackgroundService
+    {
+        public WebFSProvider(BlazorJSRuntime js, WebFSClient webFSClient)
+        {
+            JS = js;
+            WebFSClient = webFSClient;
+            // this demo provider uses navigator.storage to provide access to the browser's origin private file system
+            using var navigator = JS.Get<Navigator>("navigator");
+            StorageManager = navigator.Storage;
+            // tell WebFSClient to connect to the tray app when it can
+            WebFSClient.Enabled = true;
+        }
+```
+
 ## WIP
 If you are interested in this project, please start an issue to suggest features or areas of interest.

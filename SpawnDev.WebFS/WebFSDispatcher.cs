@@ -88,7 +88,7 @@ namespace SpawnDev.WebFS
             NeedRemoteReadyFlag = true;
             if (WhenReadySource.Task.IsCompleted)
                 WhenReadySource = new TaskCompletionSource();
-            CancelAllWaitingRequests("Connection reset");
+            CancelAllWaitingRequests("Tray reset");
             ReadyStateChanged?.Invoke(this);
         }
         /// <summary>
@@ -266,7 +266,8 @@ namespace SpawnDev.WebFS
             CancelAllWaitingRequests();
         }
         /// <summary>
-        /// This method should return an error string or throw an exception if the call pre-check fails
+        /// This method should return an error string or throw an exception if the call pre-check fails<br/>
+        /// This method can be overridden to alter call permissions. It is recommended to use the Allow* bool properties for most uses.<br/>
         /// </summary>
         /// <param name="methodInfo"></param>
         /// <param name="remoteCallableAttr"></param>
@@ -298,7 +299,8 @@ namespace SpawnDev.WebFS
             return null;
         }
         /// <summary>
-        /// This method is called when a parameter is marked with [FromLocal] is a called method to populate the argument with the lcoal variable
+        /// This method is called when a parameter is marked with [FromLocal] is a called method to populate the argument with the local variable.<br/>
+        /// This method can be overridden to provide access to types not registered to the service provider.
         /// </summary>
         /// <param name="parameterType"></param>
         /// <returns></returns>
@@ -564,8 +566,6 @@ namespace SpawnDev.WebFS
                     goto SendResponse;
                 }
                 targetType = methodInfo!.ReflectedType;
-                remoteCallableAttr = methodInfo.GetCustomAttribute<RemoteCallableAttribute>();
-                remoteCallableAttr ??= targetType?.GetCustomAttribute<RemoteCallableAttribute>();
                 // locate info about the type being called
                 info = ServiceDescriptors.FindServiceDescriptors(targetType)!.FirstOrDefault();
                 // what is left in `msg` is the call arguments
@@ -592,6 +592,12 @@ namespace SpawnDev.WebFS
                     retError = "HandleCallError: Service not found";
                     goto SendResponse;
                 }
+            }
+            remoteCallableAttr = methodInfo.GetCustomAttribute<RemoteCallableAttribute>();
+            remoteCallableAttr ??= targetType?.GetCustomAttribute<RemoteCallableAttribute>();
+            if (remoteCallableAttr == null && instance != null)
+            {
+                remoteCallableAttr = instance.GetType().GetCustomAttribute<RemoteCallableAttribute>();
             }
             var deniedError = await CanCallCheck(methodInfo, remoteCallableAttr, info, instance);
             if (!string.IsNullOrEmpty(deniedError))
@@ -628,7 +634,7 @@ namespace SpawnDev.WebFS
             try
             {
                 if (!resultRequested) return;
-                if (remoteCallableAttr != null && remoteCallableAttr.NoReply) return;
+                if (remoteCallableAttr?.NoReply == true) return;
                 if (retError == null)
                 {
                     retValue = await PreSerializeArgument(msgId!, methodInfo!, methodInfo!.ReturnParameter, true, retValue, 0);

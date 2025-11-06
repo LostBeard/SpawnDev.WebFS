@@ -3,34 +3,17 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using SpawnDev.BlazorJS;
 using SpawnDev.WebFS;
 using SpawnDev.WebFS.Demo;
-using SpawnDev.WebFS.DokanAsync;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
-// Add SpawnDev.BlazorJS interop
+builder.RootComponents.Add<App>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
+
+// Add SpawnDev.BlazorJS JS  interop
 builder.Services.AddBlazorJSRuntime(out var JS);
 
-// WebFSClient connects to the WebFS tray app running on the user's PC
-// It will use the registered IAsyncDokanOperations service to handle requests from WebFS tray
-builder.Services.AddSingleton<WebFSClient>();
+// Registers WebFSProvider, the demo WebFS provider as WebFSProvider and IAsyncDokanOperations
+// Registers WebFSClient which connects to the tray app when its Enabled property is set to true
+builder.Services.AddWebFS<WebFSProvider>();
 
-// Register our custom WebFS filesystem provider WebFSProvider, which implements IAsyncDokanOperations
-// WebFSProvider is a demo  WebFS provider that allows read and write access to the browser's Origin private file system
-builder.Services.AddSingleton<WebFSProvider>();
-
-// Register WebFSProvider as IAsyncDokanOperations also sp WebFSClient can use it
-builder.Services.AddSingleton<IAsyncDokanOperations>(sp => sp.GetRequiredService<WebFSProvider>());
-
-// Add dom objects if running in a window
-if (JS.IsWindow)
-{
-    builder.RootComponents.Add<App>("#app");
-    builder.RootComponents.Add<HeadOutlet>("head::after");
-}
-
-// Start
-var host = await builder.Build().StartBackgroundServices();
-#if DEBUG
-
-#endif
-// Run app using BlazorJSRunAsync extension method
-await host.BlazorJSRunAsync();
+// Startup using BlazorJSRunAsync
+await builder.Build().BlazorJSRunAsync();

@@ -8,6 +8,9 @@ using FileOptions = System.IO.FileOptions;
 
 namespace SpawnDev.WebFS.Host
 {
+    /// <summary>
+    /// This class redirects Dokan calls over websockets to remote IAsyncDokanOperations running on web sites that have been enabled by the user.
+    /// </summary>
     public class WebFSServer : IAsyncDokanOperations
     {
         public int ConnectedDomainsCount => ConnectedDomains.Count;
@@ -146,7 +149,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        await conn!.Run<WebFSProvider>(s => s.Cleanup(fPath, info));
+                        await conn!.Run<IAsyncDokanOperations>(s => s.Cleanup(fPath, info));
                     }
                     catch (Exception ex)
                     {
@@ -162,7 +165,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        await conn!.Run<WebFSProvider>(s => s.CloseFile(fPath, info));
+                        await conn!.Run<IAsyncDokanOperations>(s => s.CloseFile(fPath, info));
                     }
                     catch (Exception ex)
                     {
@@ -174,11 +177,15 @@ namespace SpawnDev.WebFS.Host
         {
             //if (info.IsDirectory && mode == FileMode.CreateNew) return DokanResult.AccessDenied;
             var isDesktopIni = filename.Contains("desktop.ini");
+            if (filename.Contains("LOCALHOST"))
+            {
+                var nmt = true;
+            }
             if (GetProvider(filename, out var fHost, out var fPath, out var conn))
             {
                 try
                 {
-                    var tmp = await conn!.Run<WebFSProvider, CreateFileResult>(s => s.CreateFile(fPath, access, share, mode, options, attributes, info));
+                    var tmp = await conn!.Run<IAsyncDokanOperations, CreateFileResult>(s => s.CreateFile(fPath, access, share, mode, options, attributes, info));
                     if (tmp != null)
                     {
                         return tmp;
@@ -201,7 +208,7 @@ namespace SpawnDev.WebFS.Host
             {
                 try
                 {
-                    var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.DeleteDirectory(fPath, info));
+                    var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.DeleteDirectory(fPath, info));
                     if (tmp != null)
                     {
                         return tmp;
@@ -220,7 +227,7 @@ namespace SpawnDev.WebFS.Host
             {
                 try
                 {
-                    var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.DeleteFile(fPath, info));
+                    var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.DeleteFile(fPath, info));
                     if (tmp != null)
                     {
                         return tmp;
@@ -252,9 +259,13 @@ namespace SpawnDev.WebFS.Host
                 host = fHost;
                 parts.RemoveAt(0);
                 path = string.Join("/", parts);
-                conn = EnabledConnections.OrderBy(o => o.WhenConnected).FirstOrDefault(o => o.IsConnected && o.RequestOrigin.Host.Equals(fHost, StringComparison.OrdinalIgnoreCase));
+                conn = GetEnabledHostPrimaryConnection(fHost);
             }
             return conn != null;
+        }
+        WebSocketConnection? GetEnabledHostPrimaryConnection(string host)
+        {
+            return EnabledConnections.OrderBy(o => o.WhenConnected).FirstOrDefault(o => o.IsConnected && o.RequestOrigin.Host.Equals(host, StringComparison.OrdinalIgnoreCase));
         }
         public async Task<FindFilesResult> FindFiles(string filename, AsyncDokanFileInfo info)
         {
@@ -264,13 +275,15 @@ namespace SpawnDev.WebFS.Host
                 var hosts = EnabledConnections.Select(o => o.RequestOrigin.Host).Distinct().ToList();
                 foreach (var host in hosts)
                 {
+                    var conn = GetEnabledHostPrimaryConnection(host);
+                    if (conn == null) continue;
                     var finfo = new FileInformation
                     {
                         FileName = host,
                         Attributes = FileAttributes.Directory,
                         LastAccessTime = DateTime.Now,
-                        LastWriteTime = null,
-                        CreationTime = null
+                        LastWriteTime = conn.WhenConnected,
+                        CreationTime = conn.WhenConnected
                     };
                     files.Add(finfo);
                 }
@@ -282,7 +295,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, FindFilesResult>(s => s.FindFiles(fPath, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, FindFilesResult>(s => s.FindFiles(fPath, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -298,30 +311,9 @@ namespace SpawnDev.WebFS.Host
         }
         public async Task<FindFilesResult> FindFilesWithPattern(string filename, string searchPattern, AsyncDokanFileInfo info)
         {
-            //if (filename == "\\")
-            //{
-            //    return DokanResult.NotImplemented;
-            //}
-            //if (GetFilenameParts(filename, out var fHost, out var fPath, out var conn))
-            //{
-            //    if (!string.IsNullOrEmpty(fPath))
-            //    {
-            //        try
-            //        {
-            //            var tmp = await conn!.Run<FSHost, FindFilesResult>(s => s.FindFilesWithPattern(fPath, searchPattern, info));
-            //            if (tmp != null)
-            //            {
-            //                return tmp;
-            //            }
-            //        }
-            //        catch (Exception ex)
-            //        {
-            //            return DokanResult.Error;
-            //        }
-            //    }
-            //}
             return DokanResult.NotImplemented;
         }
+        DateTime Startup = DateTime.Now;
         public async Task<GetFileInformationResult> GetFileInformation(string filename, AsyncDokanFileInfo info)
         {
             if (filename == "\\")
@@ -329,8 +321,8 @@ namespace SpawnDev.WebFS.Host
                 var fileinfo = new FileInformation { FileName = filename };
                 fileinfo.Attributes = FileAttributes.Directory;
                 fileinfo.LastAccessTime = DateTime.Now;
-                fileinfo.LastWriteTime = null;
-                fileinfo.CreationTime = null;
+                fileinfo.LastWriteTime = Startup;
+                fileinfo.CreationTime = Startup;
                 return new GetFileInformationResult(DokanResult.Success, fileinfo);
             }
             if (GetProvider(filename, out var fHost, out var fPath, out var conn))
@@ -341,15 +333,15 @@ namespace SpawnDev.WebFS.Host
                     var fileinfo = new FileInformation { FileName = filename };
                     fileinfo.Attributes = FileAttributes.Directory;
                     fileinfo.LastAccessTime = DateTime.Now;
-                    fileinfo.LastWriteTime = null;
-                    fileinfo.CreationTime = null;
+                    fileinfo.LastWriteTime = conn!.WhenConnected;
+                    fileinfo.CreationTime = conn!.WhenConnected;
                     return new GetFileInformationResult(DokanResult.Success, fileinfo);
                 }
                 else
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, GetFileInformationResult>(s => s.GetFileInformation(fPath, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, GetFileInformationResult>(s => s.GetFileInformation(fPath, info));
                         if (tmp != null)
                         {
                             var fileinfo = new FileInformation { FileName = filename };
@@ -378,7 +370,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.LockFile(fPath, offset, length, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.LockFile(fPath, offset, length, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -400,7 +392,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.UnlockFile(fPath, offset, length, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.UnlockFile(fPath, offset, length, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -422,7 +414,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, ReadFileResult>(s => s.ReadFile(fPath, offset, maxCount, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, ReadFileResult>(s => s.ReadFile(fPath, offset, maxCount, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -444,7 +436,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, WriteFileResult>(s => s.WriteFile(fPath, buffer, offset, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, WriteFileResult>(s => s.WriteFile(fPath, buffer, offset, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -466,7 +458,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetEndOfFile(fPath, length, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.SetEndOfFile(fPath, length, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -488,7 +480,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetAllocationSize(fPath, length, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.SetAllocationSize(fPath, length, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -510,7 +502,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetFileAttributes(fPath, attr, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.SetFileAttributes(fPath, attr, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -532,7 +524,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.SetFileTime(fPath, ctime, atime, mtime, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.SetFileTime(fPath, ctime, atime, mtime, info));
                         if (tmp != null)
                         {
                             return tmp;
@@ -561,7 +553,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<WebFSProvider, DokanAsyncResult>(s => s.MoveFile(fPath, fPathNew, replace, info));
+                        var tmp = await conn!.Run<IAsyncDokanOperations, DokanAsyncResult>(s => s.MoveFile(fPath, fPathNew, replace, info));
                         if (tmp != null)
                         {
                             return tmp;
