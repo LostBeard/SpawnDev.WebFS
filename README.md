@@ -59,7 +59,7 @@ await builder.Build().BlazorJSRunAsync();
 ```
 
 - Implement the `IAsyncDokanOperations` interface in your custom provider and set WebFSClient.Enabled = true when ready  
-- 
+
 `WebFSProvider.cs` - From demo repo
 ```cs
     /// <summary>
