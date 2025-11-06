@@ -4,6 +4,9 @@ using FileAccess = DokanNet.FileAccess;
 
 namespace SpawnDev.WebFS.DokanAsync
 {
+    /// <summary>
+    /// https://dokan-dev.github.io/dokan-dotnet-doc/html/interface_dokan_net_1_1_i_dokan_operations.html#aedae368efd764c21992e7b989ff2987b
+    /// </summary>
     public class AsyncDokanOperations : IDokanOperations
     {
         IAsyncDokanOperations Operations;
@@ -28,12 +31,30 @@ namespace SpawnDev.WebFS.DokanAsync
             return result.Status;
         }
 
+        /// <summary>
+        /// Check if it is possible to delete a directory.
+        /// You should NOT delete the file in DeleteDirectory, but instead you must only check whether you can delete the file or not, and return NtStatus.Success(when you can delete it) or appropriate error codes such as NtStatus.AccessDenied, NtStatus.ObjectPathNotFound, NtStatus.ObjectNameNotFound.
+        /// DeleteFile will also be called with IDokanFileInfo.DeletePending set to false to notify the driver when the file is no longer requested to be deleted.
+        /// When you return NtStatus.Success, you get a Cleanup call afterwards with IDokanFileInfo.DeletePending set to true and only then you have to actually delete the file being closed.
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <param name="info"></param>
+        /// <returns></returns>
         public NtStatus DeleteDirectory(string fileName, IDokanFileInfo info)
         {
             var result = Operations.DeleteDirectory(fileName, AsyncDokanFileInfo.From(info)).Result;
             return result.Status;
         }
 
+        /// <summary>
+        /// Check if it is possible to delete a file.<br/>
+        /// You should NOT delete the file in DeleteFile, but instead you must only check whether you can delete the file or not, and return NtStatus.Success(when you can delete it) or appropriate error codes such as NtStatus.AccessDenied, NtStatus.ObjectNameNotFound.<br/>
+        /// DeleteFile will also be called with IDokanFileInfo.DeletePending set to false to notify the driver when the file is no longer requested to be deleted.<br/>
+        /// When you return NtStatus.Success, you get a Cleanup call afterwards with IDokanFileInfo.DeletePending set to true and only then you have to actually delete the file being closed.<br/>
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <param name="info"></param>
+        /// <returns></returns>
         public NtStatus DeleteFile(string fileName, IDokanFileInfo info)
         {
             var result = Operations.DeleteFile(fileName, AsyncDokanFileInfo.From(info)).Result;

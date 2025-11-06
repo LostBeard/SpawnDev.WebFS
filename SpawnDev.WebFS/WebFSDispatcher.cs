@@ -9,32 +9,26 @@ using Array = System.Collections.Generic.List<System.Text.Json.JsonElement>;
 
 namespace SpawnDev.WebFS
 {
-    internal static class ClaimsIdentityExtensions
-    {
-        public static string ToBase64(this ClaimsIdentity claimsIdentity)
-        {
-            using var buffer = new System.IO.MemoryStream();
-            using var writer = new System.IO.BinaryWriter(buffer);
-            claimsIdentity.WriteTo(writer);
-            var data = buffer.ToArray();
-            return Convert.ToBase64String(data);
-        }
-        public static ClaimsIdentity Base64ToClaimsIdentity(this string claimsIdentity)
-        {
-            var data = Convert.FromBase64String(claimsIdentity);
-            using var buffer = new System.IO.MemoryStream(data);
-            using var reader = new System.IO.BinaryReader(buffer);
-            return new ClaimsIdentity(reader);
-        }
-    }
     /// <summary>
     /// Client and server implementation for remotely calling .Net methods
     /// </summary>
     public abstract class WebFSDispatcher : AsyncCallDispatcherSlim, IDisposable
     {
+        /// <summary>
+        /// This ClaimsPrincipal can be used to store identity information on the remote instance
+        /// </summary>
         public ClaimsPrincipal User { get; protected set; } = new ClaimsPrincipal(new ClaimsIdentity(nameof(WebFSDispatcher), ClaimTypes.Name, ClaimTypes.Role));
+        /// <summary>
+        /// WhenReady source
+        /// </summary>
         protected TaskCompletionSource WhenReadySource { get; set; } = new TaskCompletionSource();
+        /// <summary>
+        /// Completes when connected and ready state has been reached.
+        /// </summary>
         public Task WhenReady => WhenReadySource.Task;
+        /// <summary>
+        /// Returns true if connected and ready state has been reached.
+        /// </summary>
         public bool Ready => WhenReady.IsCompletedSuccessfully;
         protected IServiceScope? ServiceProviderScope { get; private set; } = null;
         protected IServiceProvider ScopedServiceProvider { get; private set; }

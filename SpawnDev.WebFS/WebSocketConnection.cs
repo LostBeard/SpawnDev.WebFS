@@ -1,11 +1,8 @@
-﻿using SpawnDev.BlazorJS.WebWorkers;
-using System.Net;
+﻿using System.Net;
 using System.Net.WebSockets;
-using System.Reflection;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
-using RemoteDispatcher = SpawnDev.WebFS.WebFSDispatcher;
 
 namespace SpawnDev.WebFS
 {
@@ -13,7 +10,7 @@ namespace SpawnDev.WebFS
     {
         public string ConnectionId { get; } = Guid.NewGuid().ToString();
         public WebSocket? WebSocket { get; private set; }
-        public int BufferSize { get; set; } = 64 * 1024; // 8192;
+        public int BufferSize { get; set; } = 128 * 1024; // 8192;
         CancellationTokenSource _cancellationTokenSourceLocal = null;
         public object Tag { get; set; } = null;
         public Dictionary<string, string> RequestHeaders = new Dictionary<string, string>();
@@ -97,11 +94,11 @@ namespace SpawnDev.WebFS
                             ms.Seek(0, SeekOrigin.Begin);
                             if (ms.Length > 0)
                             {
+                                var args = JsonSerializer.Deserialize<List<JsonElement>>(ms, JsonSerializerOptions);
                                 _ = Task.Run(async () =>
                                 {
                                     try
                                     {
-                                        var args = JsonSerializer.Deserialize<List<JsonElement>>(ms, JsonSerializerOptions);
                                         if (args != null)
                                         {
                                             await HandleCall(args);
@@ -192,13 +189,46 @@ namespace SpawnDev.WebFS
                 }
                 else
                 {
-                    var jsonS = JsonSerializer.Serialize(data);
-                    await PipeOutRawString(jsonS);
+                    var jsonS = JsonSerializer.SerializeToUtf8Bytes(data);
+                    await PipeOutRawBytes(jsonS);
                 }
                 return true;
             }
             catch { }
             return false;
+        }
+        async Task PipeOutRawBytes(byte[] data)
+        {
+            if (WebSocket == null || WebSocket.State != WebSocketState.Open)
+            {
+                throw new Exception("Websocket not connected");
+            }
+            try
+            {
+                await sendAsyncLimiter.WaitAsync();
+                var buffer = new ArraySegment<byte>(data);
+                using (var s_cts = new CancellationTokenSource())
+                {
+                    s_cts.CancelAfter(SendTimeout);
+                    await WebSocket.SendAsync(buffer, WebSocketMessageType.Binary, true, s_cts.Token).ConfigureAwait(false);
+                }
+            }
+            catch (WebSocketException ex)
+            {
+                // likely just a disconnect
+                // can be ignored
+                var bb = "";
+                throw;
+            }
+            catch (Exception ex)
+            {
+                var bb = "";
+                throw;
+            }
+            finally
+            {
+                sendAsyncLimiter.Release();
+            }
         }
         async Task PipeOutRawString(string data)
         {
@@ -239,9 +269,9 @@ namespace SpawnDev.WebFS
         {
             _ = Send(args);
         }
-        protected override Task<object?> DispatchCallAsync(MethodInfo methodInfo, object?[]? args)
-        {
-            return base.DispatchCallAsync(methodInfo, args);
-        }
+        //protected override Task<object?> DispatchCallAsync(MethodInfo methodInfo, object?[]? args)
+        //{
+        //    return base.DispatchCallAsync(methodInfo, args);
+        //}
     }
 }

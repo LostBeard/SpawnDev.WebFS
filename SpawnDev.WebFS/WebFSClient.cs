@@ -24,7 +24,6 @@ namespace SpawnDev.WebFS
         public WebFSEndpoint Endpoint { get; private set; }
         IServiceProvider ServiceProvider;
         public WebSocketConnection? Connection { get; private set; }
-        TaskCompletionSource? _disconnectTCS;
         public bool Connected { get; private set; }
         public WebFSProvider WebFSProvider { get; private set; }
 		public WebFSClient(BlazorJSRuntime js, WebFSProvider webFSProvider, IServiceProvider serviceProvider)
@@ -85,7 +84,7 @@ namespace SpawnDev.WebFS
                 var connected = webSocket.State == WebSocketState.Open;
                 if (connected)
                 {
-                    _disconnectTCS = new TaskCompletionSource();
+                    var _disconnectTCS = new TaskCompletionSource();
 
                     Connection = new WebSocketConnection(ServiceProvider, webSocket, Url);
                     Connection.OnStateChanged += (_) =>
@@ -115,10 +114,11 @@ namespace SpawnDev.WebFS
                         Connected = false;
                         JS.Log("Disconnected", Url);
                         OnDisconnected?.Invoke(this);
-                        Connection.Dispose();
                         endPoint.LastChecked = DateTime.UtcNow;
                         endPoint.LastVerified = DateTime.UtcNow;
                     }
+                    Connection.Dispose();
+                    Connection = null;
                 }
                 if (endPoint.Result == EndpointResult.Unknown)
                 {
