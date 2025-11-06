@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "SpawnDev.WebFS.Demo",
   "resources": {
-    "hash": "sha256-DW2Y774qWJ2omfQrzl08GvF4t/AM7JizezM/lm5x+/w=",
+    "hash": "sha256-+z0pWNdPZFC8bTjv0zf3nPbQD61LnF5AujnJPblkhuA=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-9Fzd5We95Rp03dEKIAbYjPDR3eWyLbmjMlYStvxyiok="
     },
@@ -212,8 +212,8 @@
       "mscorlib.wasm": "sha256-MZJ1V6miMP318lQowft4FPkcszcibPLDTwKj235fSAc=",
       "netstandard.wasm": "sha256-RYAURbR1AHkUZYjKgu+B/i3N3VP4abnAaH+vxwJ8d3c=",
       "System.Private.CoreLib.wasm": "sha256-4YzdATaWUDkUkRpe+hl+T61TaCjRVapVUtqTIai3Gd8=",
-      "SpawnDev.WebFS.wasm": "sha256-YTWsj2rwhlcYJbEzt3vsMm6qyEMJq1bIlLfo8FvIFbw=",
-      "SpawnDev.WebFS.Demo.wasm": "sha256-uIO2xStAulByg7pGewsdPPmGdhgxvilx9+cQjHZk1Y0="
+      "SpawnDev.WebFS.wasm": "sha256-GcrATrB2L/aUfkY7BYN4in820A7gemK2/ND+36IL/4s=",
+      "SpawnDev.WebFS.Demo.wasm": "sha256-Oa9o0C5ZQpczg6l/ymlqyqEtOjfq69p1IMWi84lgqMs="
     },
     "satelliteResources": {
       "de": {
