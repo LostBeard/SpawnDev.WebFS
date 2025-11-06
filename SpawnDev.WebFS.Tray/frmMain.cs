@@ -4,6 +4,7 @@ using SpawnDev.BlazorJS;
 using SpawnDev.WebFS.Host;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Reflection;
 
 namespace SpawnDev.WebFS.Tray
 {
@@ -50,6 +51,7 @@ namespace SpawnDev.WebFS.Tray
             _sysTray = new NotifyIcon();
             _sysTray.Icon = this.Icon;
             _sysTray.Visible = true;
+            _sysTray.Text = "WebFS - " + Assembly.GetExecutingAssembly().GetAssemblyFileVersion().ToString();
             _sysTray.DoubleClick += (s, e) =>
             {
                 if (Visible && ShowInTaskbar)
