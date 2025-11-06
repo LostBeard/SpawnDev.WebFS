@@ -47,18 +47,19 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Add SpawnDev.BlazorJS JS  interop
+// Add SpawnDev.BlazorJS JS interop
 builder.Services.AddBlazorJSRuntime(out var JS);
 
 // Registers WebFSProvider, the demo WebFS provider as WebFSProvider and IAsyncDokanOperations
 // Registers WebFSClient which connects to the tray app when its Enabled property is set to true
 builder.Services.AddWebFS<WebFSProvider>();
 
-// Startup using BlazorJSRunAsync
+// Start using BlazorJSRunAsync
 await builder.Build().BlazorJSRunAsync();
 ```
 
 - Implement the `IAsyncDokanOperations` interface in your custom provider and set WebFSClient.Enabled = true when ready  
+- 
 `WebFSProvider.cs` - From demo repo
 ```cs
     /// <summary>
@@ -81,7 +82,6 @@ await builder.Build().BlazorJSRunAsync();
         }
 
         // Implement IAsyncDokanOperations interface here
-
         public async Task<CreateFileResult> CreateFile(string filename, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
         {
             ...
