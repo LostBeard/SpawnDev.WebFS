@@ -88,7 +88,7 @@ await builder.Build().BlazorJSRunAsync();
             WebFSClient.Enabled = true;
         }
 
-        // Implement IAsyncDokanOperations interface here
+        // Implement IAsyncDokanOperations interface
         public async Task<CreateFileResult> CreateFile(string filename, DokanNet.FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
         {
             ...
