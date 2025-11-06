@@ -1,11 +1,8 @@
-using Microsoft.AspNetCore.Components.Web;
-using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using SpawnDev.BlazorJS;
 using SpawnDev.DB;
 using SpawnDev.WebFS.Host;
 using System.Diagnostics;
-using System.Globalization;
 
 namespace SpawnDev.WebFS.Tray
 {
@@ -35,13 +32,9 @@ namespace SpawnDev.WebFS.Tray
         {
             var builder = WinFormsAppBuilder.CreateDefault(args);
             builder.Services.AddBlazorJSRuntime();
-            // DB
-            DateTimeHandler.AddDateTimeHandler();
-            DateTimeNullableHandler.AddDateTimeNullableHandler();
-            DateTimeOffsetHandler.AddDateTimeOffsetHandler();
-            DateTimeOffsetNullableHandler.AddDateTimeOffsetNullableHandler();
-            builder.Services.AddSingleton<AppDB>();
-            // Dokan Service
+            // AppDB
+            builder.Services.AddAppDB();
+            // WebFSServer and WebFSHost
             builder.Services.AddSingleton<WebFSServer>();
             builder.Services.AddSingleton<WebFSHost>();
             // Build

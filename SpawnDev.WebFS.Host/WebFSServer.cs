@@ -173,6 +173,7 @@ namespace SpawnDev.WebFS.Host
         public async Task<CreateFileResult> CreateFile(string filename, FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
         {
             //if (info.IsDirectory && mode == FileMode.CreateNew) return DokanResult.AccessDenied;
+            var isDesktopIni = filename.Contains("desktop.ini");
             if (GetProvider(filename, out var fHost, out var fPath, out var conn))
             {
                 try
@@ -251,7 +252,7 @@ namespace SpawnDev.WebFS.Host
                 host = fHost;
                 parts.RemoveAt(0);
                 path = string.Join("/", parts);
-                conn = EnabledConnections.OrderBy(o => o.WhenConnected).FirstOrDefault(o => o.IsConnected && o.RequestOrigin.Host == fHost);
+                conn = EnabledConnections.OrderBy(o => o.WhenConnected).FirstOrDefault(o => o.IsConnected && o.RequestOrigin.Host.Equals(fHost, StringComparison.OrdinalIgnoreCase));
             }
             return conn != null;
         }
@@ -351,6 +352,13 @@ namespace SpawnDev.WebFS.Host
                         var tmp = await conn!.Run<WebFSProvider, GetFileInformationResult>(s => s.GetFileInformation(fPath, info));
                         if (tmp != null)
                         {
+                            var fileinfo = new FileInformation { FileName = filename };
+                            fileinfo.Attributes = tmp.FileInfo.Attributes;
+                            fileinfo.LastAccessTime = tmp.FileInfo.LastAccessTime;
+                            fileinfo.LastWriteTime = tmp.FileInfo.LastWriteTime;
+                            fileinfo.CreationTime = tmp.FileInfo.CreationTime;
+                            fileinfo.Length = tmp.FileInfo.Length;
+                            tmp.FileInfo = fileinfo;
                             return tmp;
                         }
                     }

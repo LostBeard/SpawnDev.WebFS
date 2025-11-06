@@ -133,7 +133,7 @@ namespace SpawnDev.WebFS
             {
                 JS.Log($"<< {method} {openFile?.Filename} {result.Status.ToString()}", info.FileInfo);
             }
-            else if (method != nameof(CreateFile))
+            else if (result.Status != NtStatus.Success)
             {
                 JS.Log($"<< {method} {openFile?.Filename} {result.Status.ToString()}");
             }
@@ -144,6 +144,10 @@ namespace SpawnDev.WebFS
                     case nameof(WebFSProvider.CreateFile):
                         if (result.Status != NtStatus.Success)
                         {
+                            if (!new string[]{ "desktop.ini" }.Contains(openFile.Filename))
+                            {
+                                var nmt = true;
+                            }
                             // Cleanup will not be called for this op id
                             _ = CloseContext(openFile.Info.OpId);
                         }
@@ -216,36 +220,53 @@ namespace SpawnDev.WebFS
                 JS.Log($"CreateFile: {info.OpId} {entry?.Kind} {pathIsDirectory} {filename} FileAccess:{access.ToString()} FileShare:{share.ToString()} FileMode:{mode.ToString()} FileOptions:{options.ToString()} FileAttributes:{attributes.ToString()}", ct);
                 if (info.IsDirectory)
                 {
-                    switch (mode)
+                    try
                     {
-                        case FileMode.CreateNew:
-                            if (pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileExists);
-                            // create directory
-                            await FS.CreatePathDirectory(filename);
-                            break;
-                        case FileMode.Open:
-                            if (isFile) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.NotADirectory);
-                            if (!pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileNotFound);
-                            // open (do nothing here)
-                            break;
-                        default:
-                            return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.Error);
+                        switch (mode)
+                        {
+                            case FileMode.Open:
+                                // if the containing folder does not exist: PathNotFound
+                                // ...
+                                // if it is a file: NotADirectory
+                                if (isFile) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.NotADirectory);
+                                // if it does not exist: FileNotFound
+                                if (!pathExists)
+                                {
+                                    return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileNotFound);
+                                }
+                                // open (do nothing here)
+                                break;
+                            case FileMode.CreateNew:
+                                // if it is a file OR folder: FileExists (or AlreadyExists, both == NtStatus.ObjectNameCollision)
+                                if (pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileExists);
+                                // create directory
+                                await FS!.CreatePathDirectory(filename);
+                                break;
+                            default:
+                                return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.Error);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // return a value that best describes the error, just using access denied here for now
+                        return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.AccessDenied);
                     }
                 }
                 else
                 {
                     var readWriteAttributes = (access & DataAccess) == 0;
                     var readAccess = (access & DataWriteAccess) == 0;
+                    info.IsDirectory = pathIsDirectory;
                     switch (mode)
                     {
-                        case FileMode.CreateNew:
-                            if (pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileExists);
-                            // create
-                            break;
                         case FileMode.Open:
-                            if (!pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileNotFound);
-                            // open
-                            // check if driver only wants to read attributes, security info, or open directory
+                            // if not found because filename contains invalid characters: InvalidName
+                            // if not found else: FileNotFound
+                            if (!pathExists)
+                            {
+                                return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileNotFound);
+                            }
+                            // check if driver only wants to read attributes, security info, or open directory (data will not be accessed)
                             if (readWriteAttributes || pathIsDirectory)
                             {
                                 if (pathIsDirectory && (access & FileAccess.Delete) == FileAccess.Delete && (access & FileAccess.Synchronize) != FileAccess.Synchronize)
@@ -253,11 +274,16 @@ namespace SpawnDev.WebFS
                                     //It is a DeleteFile request on a directory
                                     return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.AccessDenied);
                                 }
-                                info.IsDirectory = pathIsDirectory;
                                 return Trace<CreateFileResult>(nameof(CreateFile), ct, new CreateFileResult(DokanResult.Success, pathIsDirectory));
                             }
                             break;
+                        case FileMode.CreateNew:
+                            // if exists: FileExists
+                            if (pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileExists);
+                            // create
+                            break;
                         case FileMode.Truncate:
+                            // if !exists: FileNotFound
                             if (!pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileNotFound);
                             // open and truncate
                             await FS.Write(filename, "");
@@ -272,9 +298,10 @@ namespace SpawnDev.WebFS
                             {
                                 await FS.Write(filename, "");
                             }
+                            ct.Info.WriteToEndOfFile = true;
+                            JS.Log("CreateFile WriteToEndOfFile set to true", info.OpId, filename);
                             break;
                         case FileMode.OpenOrCreate:
-                            if (pathExists) return Trace<CreateFileResult>(nameof(CreateFile), ct, DokanResult.FileExists);
                             // open or create
                             if (!pathExists)
                             {
@@ -455,7 +482,7 @@ namespace SpawnDev.WebFS
                             var finfo = new FileInformation
                             {
                                 FileName = handle.Name,
-                                Attributes = FileAttributes.Normal,
+                                Attributes = FileAttributes.Archive,
                                 LastAccessTime = DateTime.Now,
                                 LastWriteTime = null,
                                 CreationTime = null,
@@ -508,7 +535,7 @@ namespace SpawnDev.WebFS
                 lastModified = await fsHandle.GetLastModified();
             }
             var fileinfo = new FileInformation { FileName = filename };
-            fileinfo.Attributes = pathIsDirectory ? FileAttributes.Directory : FileAttributes.Normal;
+            fileinfo.Attributes = pathIsDirectory ? FileAttributes.Directory : FileAttributes.Archive;
             fileinfo.LastAccessTime = DateTime.Now;
             fileinfo.LastWriteTime = lastModified == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(lastModified).UtcDateTime;
             fileinfo.CreationTime = lastModified == 0 ? null : DateTimeOffset.FromUnixTimeMilliseconds(lastModified).UtcDateTime;
