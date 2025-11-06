@@ -72,7 +72,8 @@ await builder.Build().BlazorJSRunAsync();
     /// <summary>
     /// Demo WebFS filesystem provider.<br/>
     /// Provides access the the browsers Origin private file system.<br/>
-    /// IBackgroundService sets this service to autostart when the Blazor WASM web app loads
+    /// IBackgroundService sets this service to autostart when the Blazor WASM web app loads.<br/>
+    /// The [RemoteCallable] attribute lets the WebFS tray app use this service
     /// </summary>
     [RemoteCallable]
     public class WebFSProvider : IAsyncDokanOperations, IBackgroundService
