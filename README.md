@@ -35,6 +35,13 @@ The WebFS tray app is required for both development and production use. In devel
 #### Blazor WebAssembly
 - Add a reference to the latest `SpawnDev.WebFS` Nuget package using your method of choice.  
 
+`Demo.csproj`
+```xml
+    <PackageReference Include="SpawnDev.WebFS" Version="1.0.0" />
+```
+
+- Register required services and your file system provider class that implements IAsyncDokanOperations
+
 `Program.cs` - From demo repo
 ```cs
 using Microsoft.AspNetCore.Components.Web;
