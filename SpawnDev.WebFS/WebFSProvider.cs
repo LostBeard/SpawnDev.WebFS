@@ -83,7 +83,7 @@ namespace SpawnDev.WebFS
             if (_openFiles.TryGetValue(opid, out var openFile))
             {
                 _openFiles.Remove(opid);
-                //JS.Log($"CloseContext: {opid} {openFile.Filename}", openFile.Info);
+                //Log($"CloseContext: {opid} {openFile.Filename}", openFile.Info);
                 if (openFile.Context is FileSystemWritableFileStream str)
                 {
                     await str.Close();
@@ -127,15 +127,25 @@ namespace SpawnDev.WebFS
                 OnFileClosed?.Invoke(openFile);
             }
         }
+        void Log(params object?[] args)
+        {
+#if DEBUG 
+            JS.Log(args);
+#endif
+        }
         protected T Trace<T>(string method, OpenFileContext? openFile, T result) where T : DokanAsyncResult
         {
-            if (result is GetFileInformationResult info)
+            if (result.Status != NtStatus.Success)
             {
-                JS.Log($"<< {method} {openFile?.Filename} {result.Status.ToString()}", info.FileInfo);
+                Log($"!!! {method} {openFile?.Filename} {result.Status.ToString()}");
             }
-            else if (result.Status != NtStatus.Success)
+            else if (result is GetFileInformationResult info)
             {
-                JS.Log($"<< {method} {openFile?.Filename} {result.Status.ToString()}");
+                Log($"<< {method} {openFile?.Filename} {result.Status.ToString()}", info.FileInfo);
+            }
+            else if (result is FindFilesResult ffResult)
+            {
+                Log($"<< {method} {openFile?.Filename} {result.Status.ToString()}", ffResult.Files);
             }
             if (openFile != null)
             {
@@ -144,10 +154,6 @@ namespace SpawnDev.WebFS
                     case nameof(WebFSProvider.CreateFile):
                         if (result.Status != NtStatus.Success)
                         {
-                            if (!new string[]{ "desktop.ini" }.Contains(openFile.Filename))
-                            {
-                                var nmt = true;
-                            }
                             // Cleanup will not be called for this op id
                             _ = CloseContext(openFile.Info.OpId);
                         }
@@ -190,7 +196,7 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task Cleanup(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"Cleanup: {info.OpId} {filename}", info);
+            Log($"Cleanup: {info.OpId} {filename}", info);
             if (GetContext(info, out var ct))
             {
                 if (info.DeleteOnClose && !ct!.Info.DeleteOnClose)
@@ -203,7 +209,7 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task CloseFile(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"CloseFile: {info.OpId} {filename}", info);
+            Log($"CloseFile: {info.OpId} {filename}", info);
             await CloseContext(info.OpId);
         }
         /// <inheritdoc/>
@@ -217,7 +223,7 @@ namespace SpawnDev.WebFS
                 var pathExists = entry != null;
                 var isFile = entry?.Kind == "file";
                 var pathIsDirectory = entry?.Kind == "directory";
-                JS.Log($"CreateFile: {info.OpId} {entry?.Kind} {pathIsDirectory} {filename} FileAccess:{access.ToString()} FileShare:{share.ToString()} FileMode:{mode.ToString()} FileOptions:{options.ToString()} FileAttributes:{attributes.ToString()}", ct);
+                Log($"CreateFile: {info.OpId} {entry?.Kind} {pathIsDirectory} {filename} FileAccess:{access.ToString()} FileShare:{share.ToString()} FileMode:{mode.ToString()} FileOptions:{options.ToString()} FileAttributes:{attributes.ToString()}", ct);
                 if (info.IsDirectory)
                 {
                     try
@@ -299,7 +305,7 @@ namespace SpawnDev.WebFS
                                 await FS.Write(filename, "");
                             }
                             ct.Info.WriteToEndOfFile = true;
-                            JS.Log("CreateFile WriteToEndOfFile set to true", info.OpId, filename);
+                            Log("CreateFile WriteToEndOfFile set to true", info.OpId, filename);
                             break;
                         case FileMode.OpenOrCreate:
                             // open or create
@@ -368,7 +374,7 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> DeleteDirectory(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"DeleteDirectory: {info.OpId} {filename}", info);
+            Log($"DeleteDirectory: {info.OpId} {filename}", info);
             if (GetContext(info, out var ct))
             {
                 try
@@ -413,7 +419,7 @@ namespace SpawnDev.WebFS
         /// <returns></returns>
         public async Task<DokanAsyncResult> DeleteFile(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"DeleteFile: {info.OpId} {filename}", info);
+            Log($"DeleteFile: {info.OpId} {filename}", info);
             if (GetContext(info, out var ct))
             {
                 try
@@ -450,7 +456,7 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<FindFilesResult> FindFiles(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"FindFiles: {info.OpId} {filename}", info);
+            Log($"FindFiles: {info.OpId} {filename}", info);
             try
             {
                 var files = new List<FileInformation>();
@@ -503,21 +509,21 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<FindFilesResult> FindFilesWithPattern(string filename, string searchPattern, AsyncDokanFileInfo info)
         {
-            JS.Log($"FindFilesWithPattern: {info.OpId} {filename}", info);
+            Log($"FindFilesWithPattern: {info.OpId} {filename}", info);
 
             return DokanResult.NotImplemented;
         }
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> FlushFileBuffers(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"FlushFileBuffers: {info.OpId} {filename}", info);
+            Log($"FlushFileBuffers: {info.OpId} {filename}", info);
 
             return DokanResult.NotImplemented;
         }
         /// <inheritdoc/>
         public async Task<GetFileInformationResult> GetFileInformation(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"GetFileInformation: {info.OpId} {filename}", info);
+            Log($"GetFileInformation: {info.OpId} {filename}", info);
             GetContext(info, out var ct);
             using var entry = await GetPathHandle(filename);
             var pathExists = entry != null;
@@ -545,20 +551,20 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> LockFile(string filename, long offset, long length, AsyncDokanFileInfo info)
         {
-            JS.Log($"LockFile: {info.OpId} {filename}", info);
+            Log($"LockFile: {info.OpId} {filename}", info);
 
             return DokanResult.NotImplemented;
         }
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> UnlockFile(string filename, long offset, long length, AsyncDokanFileInfo info)
         {
-            JS.Log($"UnlockFile: {info.OpId} {filename}", info);
+            Log($"UnlockFile: {info.OpId} {filename}", info);
             return DokanResult.NotImplemented;
         }
         /// <inheritdoc/>
         public async Task<ReadFileResult> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
         {
-            JS.Log($"ReadFile: {info.OpId} {filename}", info);
+            Log($"ReadFile: {info.OpId} {filename}", info);
 
             if (GetContext(info, out var ct))
             {
@@ -578,12 +584,12 @@ namespace SpawnDev.WebFS
                         if (offset > 0) fileData.Position = offset;
                         await fileData.ReadExactlyAsync(data);
                     }
-                    JS.Log($"Read {data.Length} bytes (maxCount: {maxCount}, offset: {offset}) from {filename}");
+                    Log($"Read {data.Length} bytes (maxCount: {maxCount}, offset: {offset}) from {filename}");
                     return new ReadFileResult(NtStatus.Success, data);
                 }
                 catch (Exception ex)
                 {
-                    JS.Log($"ReadFile error: {ex.ToString()}");
+                    Log($"ReadFile error: {ex.ToString()}");
                 }
             }
             return DokanResult.Error;
@@ -592,7 +598,7 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<WriteFileResult> WriteFile(string filename, byte[] buffer, long offset, AsyncDokanFileInfo info)
         {
-            JS.Log($"WriteFile: {info.OpId} {filename}", offset, buffer.Length, info);
+            Log($"WriteFile: {info.OpId} {filename}", offset, buffer.Length, info);
             if (GetContext(info, out var ct))
             {
                 var releaseLock = false;
@@ -613,12 +619,12 @@ namespace SpawnDev.WebFS
                     }
                     str.Seek(offset, SeekOrigin.Begin);
                     await str.WriteAsync(buffer);
-                    JS.Log($"Wrote {buffer.Length} bytes (offset: {offset}) to {filename}");
+                    Log($"Wrote {buffer.Length} bytes (offset: {offset}) to {filename}");
                     return new WriteFileResult(buffer.Length);
                 }
                 catch (Exception ex)
                 {
-                    JS.Log($"WriteFile error: {ex.ToString()}");
+                    Log($"WriteFile error: {ex.ToString()}");
                 }
                 finally
                 {
@@ -630,7 +636,7 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetAllocationSize(string filename, long length, AsyncDokanFileInfo info)
         {
-            JS.Log($"SetAllocationSize: {info.OpId} {filename}", info);
+            Log($"SetAllocationSize: {info.OpId} {filename}", info);
             if (GetContext(info, out var ct))
             {
                 try
@@ -646,7 +652,7 @@ namespace SpawnDev.WebFS
                         await str.Truncate((ulong)length);
                     }
                     await str.Close();
-                    JS.Log($"Allocated {length} bytes to {filename}");
+                    Log($"Allocated {length} bytes to {filename}");
                     return DokanResult.Success;
                 }
                 catch (Exception ex)
@@ -659,7 +665,7 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetEndOfFile(string filename, long length, AsyncDokanFileInfo info)
         {
-            JS.Log($"SetEndOfFile: {info.OpId} {filename} {length}", info);
+            Log($"SetEndOfFile: {info.OpId} {filename} {length}", info);
             if (GetContext(info, out var ct))
             {
                 try
@@ -687,21 +693,21 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetFileAttributes(string filename, FileAttributes attributes, AsyncDokanFileInfo info)
         {
-            JS.Log($"SetFileAttributes: {info.OpId} {filename} {attributes}", info);
+            Log($"SetFileAttributes: {info.OpId} {filename} {attributes}", info);
 
             return DokanResult.NotImplemented;
         }
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetFileTime(string filename, DateTime? creationTime, DateTime? lastAccessTime, DateTime? lastWriteTime, AsyncDokanFileInfo info)
         {
-            JS.Log($"SetFileTime: {info.OpId} {filename} {creationTime} {lastAccessTime} {lastWriteTime}", info);
+            Log($"SetFileTime: {info.OpId} {filename} {creationTime} {lastAccessTime} {lastWriteTime}", info);
 
             return DokanResult.NotImplemented;
         }
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> MoveFile(string oldName, string newName, bool replace, AsyncDokanFileInfo info)
         {
-            JS.Log($"MoveFile: {info.OpId} {oldName} {newName} {replace}", info);
+            Log($"MoveFile: {info.OpId} {oldName} {newName} {replace}", info);
             // TODO - renaming a folder uses this (among other things.) this needs to be implemented
             using var srcHandle = await GetPathHandle(oldName);
             if (srcHandle is FileSystemFileHandle fHandle)
@@ -749,19 +755,19 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public Task<GetFileSecurityResult> GetFileSecurity(string filename, AccessControlSections sections, AsyncDokanFileInfo info)
         {
-            JS.Log($"GetFileSecurity: {info.OpId} {filename}", info);
+            Log($"GetFileSecurity: {info.OpId} {filename}", info);
             throw new NotImplementedException();
         }
         /// <inheritdoc/>
         public Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurity security, AccessControlSections sections, AsyncDokanFileInfo info)
         {
-            JS.Log($"SetFileSecurity: {info.OpId} {filename}", info);
+            Log($"SetFileSecurity: {info.OpId} {filename}", info);
             throw new NotImplementedException();
         }
         /// <inheritdoc/>
         public Task<FindStreamsResult> FindStreams(string filename, AsyncDokanFileInfo info)
         {
-            JS.Log($"FindStreams: {info.OpId} {filename}", info);
+            Log($"FindStreams: {info.OpId} {filename}", info);
             throw new NotImplementedException();
         }
         #endregion
@@ -769,25 +775,25 @@ namespace SpawnDev.WebFS
         /// <inheritdoc/>
         public Task<GetDiskFreeSpaceResult> GetDiskFreeSpace(AsyncDokanFileInfo info)
         {
-            JS.Log($"GetDiskFreeSpace: {info.OpId}", info);
+            Log($"GetDiskFreeSpace: {info.OpId}", info);
             throw new NotImplementedException();
         }
         /// <inheritdoc/>
         public Task<GetVolumeInformationResult> GetVolumeInformation(AsyncDokanFileInfo info)
         {
-            JS.Log($"GetVolumeInformation: {info.OpId}", info);
+            Log($"GetVolumeInformation: {info.OpId}", info);
             throw new NotImplementedException();
         }
         /// <inheritdoc/>
         public Task<DokanAsyncResult> Unmounted(AsyncDokanFileInfo info)
         {
-            JS.Log($"Unmounted: {info.OpId}", info);
+            Log($"Unmounted: {info.OpId}", info);
             throw new NotImplementedException();
         }
         /// <inheritdoc/>
         public Task<DokanAsyncResult> Mounted(string mountPoint, AsyncDokanFileInfo info)
         {
-            JS.Log($"Mounted: {info.OpId}", info);
+            Log($"Mounted: {info.OpId}", info);
             throw new NotImplementedException();
         }
         #endregion

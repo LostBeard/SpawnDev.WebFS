@@ -49,9 +49,9 @@ namespace SpawnDev.WebFS.Host
             if (available.Any())
             {
                 var count = available.Count;
-                if(count  > 2)
+                if (count > 2)
                 {
-                    available  = available.Take(count / 2).ToList();
+                    available = available.Take(count / 2).ToList();
                     MountPoint = $@"{available.Last()}:\";
                 }
                 MountPoint = $@"{available.Last()}:\";
@@ -179,6 +179,7 @@ namespace SpawnDev.WebFS.Host
                     .ConfigureOptions(options =>
                     {
                         //options.Options = DokanOptions.StderrOutput;
+                        //options.Options |= DokanOptions.CaseSensitive;
                         options.MountPoint = MountPoint;
                     });
                 dokanInstance = dokanBuilder.Build(WebFSServer);
