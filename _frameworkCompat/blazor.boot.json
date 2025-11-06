@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "SpawnDev.WebFS.Demo",
   "resources": {
-    "hash": "sha256-7sEsgxvfxfkIYV2LGU08m3RVWX7lDc+yT6dt48knNnQ=",
+    "hash": "sha256-QUJWZclYxfIkwjgx4pJb/FXFazF9o46tv5dpvc+jc9w=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-BGIuXUFC4riEY5cvbfOE3SsEHVNEupGziC7oLyApCCw="
     },
@@ -9,7 +9,7 @@
       "dotnet.runtime.js": "sha256-aLf0XK8bqX83FXyXydFPTC1FOTq3PaeGDyoDn3uz194="
     },
     "wasmNative": {
-      "dotnet.native.wasm": "sha256-f6VfU11H8Ulrj2zWnzA5M80T61Q79OD9ZHVvAgcX/cY="
+      "dotnet.native.wasm": "sha256-C5d2w0CWL3cJlFR1rnDTI+IsN4xwLCC1VHpU6wj0Ekc="
     },
     "icu": {
       "icudt_CJK.dat": "sha256-SZLtQnRc0JkwqHab0VUVP7T3uBPSeYzxzDnpxPpUnHk=",
@@ -42,7 +42,6 @@
       "Microsoft.JSInterop.wasm": "sha256-swhTDwzMkRtEP7KgZvcuVy1WbQMFsASKekPTeH/rPVI=",
       "Microsoft.JSInterop.WebAssembly.wasm": "sha256-PbHGoNAYqyOHjH5UNPj5Zh5TGQLL89zj0yL5ocLKaFk=",
       "SpawnDev.BlazorJS.wasm": "sha256-5VsxJVx8qx9Z1mErMjSVwhU5hPw+ErpQYgkJPhXdtws=",
-      "SpawnDev.BlazorJS.VisNetwork.wasm": "sha256-561t4y19lyHagmzmV64bf3Sb1Ws/UI9cxHE2aRLFPu0=",
       "SpawnDev.BlazorJS.WebWorkers.wasm": "sha256-qk3TGvuxRhqkrtzTnI7NHv8+0aqGU8VU+Xno0yQJBsw=",
       "System.IO.Pipelines.wasm": "sha256-JqVBy6SV+3qk+IK3VJiyIDt9CsVk6b1/ytTXmrI4mTM=",
       "Microsoft.CSharp.wasm": "sha256-Qxji4BKMsoNCEU7Mg4o8wn42f2aMrKc3++gB9FZQtCM=",
@@ -213,8 +212,8 @@
       "mscorlib.wasm": "sha256-MZJ1V6miMP318lQowft4FPkcszcibPLDTwKj235fSAc=",
       "netstandard.wasm": "sha256-RYAURbR1AHkUZYjKgu+B/i3N3VP4abnAaH+vxwJ8d3c=",
       "System.Private.CoreLib.wasm": "sha256-4YzdATaWUDkUkRpe+hl+T61TaCjRVapVUtqTIai3Gd8=",
-      "SpawnDev.WebFS.wasm": "sha256-XvFk1OsLUIUmVcMpkRs3eWK2skzKmXaJeRCvsnhJd0U=",
-      "SpawnDev.WebFS.Demo.wasm": "sha256-C+KgQUsuT7oHveMBnO3xD0t1Wu3DPWdr3uxVVQZfrGM="
+      "SpawnDev.WebFS.wasm": "sha256-YTWsj2rwhlcYJbEzt3vsMm6qyEMJq1bIlLfo8FvIFbw=",
+      "SpawnDev.WebFS.Demo.wasm": "sha256-uIO2xStAulByg7pGewsdPPmGdhgxvilx9+cQjHZk1Y0="
     },
     "satelliteResources": {
       "de": {
