@@ -174,14 +174,12 @@ namespace SpawnDev.WebFS.Host
                 }
             }
         }
+
         public async Task<CreateFileResult> CreateFile(string filename, FileAccess access, FileShare share, FileMode mode, FileOptions options, FileAttributes attributes, AsyncDokanFileInfo info)
         {
+            
             //if (info.IsDirectory && mode == FileMode.CreateNew) return DokanResult.AccessDenied;
             var isDesktopIni = filename.Contains("desktop.ini");
-            if (filename.Contains("LOCALHOST"))
-            {
-                var nmt = true;
-            }
             if (GetProvider(filename, out var fHost, out var fPath, out var conn))
             {
                 try

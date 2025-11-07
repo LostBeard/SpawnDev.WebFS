@@ -1,11 +1,13 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.WebWorkers;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Array = System.Collections.Generic.List<System.Text.Json.JsonElement>;
+using TypeExtensions = SpawnDev.BlazorJS.TypeExtensions;
 
 namespace SpawnDev.WebFS
 {
@@ -198,23 +200,32 @@ namespace SpawnDev.WebFS
         /// <summary>
         /// 
         /// </summary>
+        /// <param name="serviceType"></param>
         /// <param name="methodInfo"></param>
         /// <param name="args"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
-        protected override async Task<object?> DispatchCallAsync(MethodInfo methodInfo, object?[]? args)
+        protected override async Task<object?> Call(Type serviceType, MethodInfo methodInfo, object?[]? args)
         {
             var callError = await PreCallCheck(methodInfo, args);
             if (!string.IsNullOrEmpty(callError)) throw new Exception($"DispatchCall error: {callError}");
             object? retValue = null;
             var methodInfoSerialized = SerializableMethodInfoSlim.SerializeMethodInfo(methodInfo);
+            var serviceTypeName = TypeExtensions.GetFullName(serviceType);
             var msgId = Guid.NewGuid().ToString();
             var outArgs = await PreSerializeArgs(msgId, methodInfo, args);
             var remoteCallableAttribute = methodInfo.GetCustomAttribute<RemoteCallableAttribute>(true);
             var resultRequested = remoteCallableAttribute == null || !remoteCallableAttribute.NoReply;
             try
             {
-                SendCall(new object?[] { resultRequested ? RemoteDispatcherMessageType.Call : RemoteDispatcherMessageType.Message, msgId, methodInfoSerialized, outArgs });
+                SendCall(new object?[] 
+                { 
+                    resultRequested ? RemoteDispatcherMessageType.Call : RemoteDispatcherMessageType.Message, 
+                    msgId,
+                    serviceTypeName,
+                    methodInfoSerialized, 
+                    outArgs 
+                });
                 if (resultRequested)
                 {
                     var tcs = new TaskCompletionSource<Array>();
@@ -558,6 +569,8 @@ namespace SpawnDev.WebFS
                     retError = "HandleCallError: Offline";
                     goto SendResponse;
                 }
+                var serviceTypeName = msg.Shift<string>();
+                targetType = TypeExtensions.GetType(serviceTypeName);
                 var methodInfoSerialized = msg.Shift<string>();
                 methodInfo = SerializableMethodInfoSlim.DeserializeMethodInfo(methodInfoSerialized);
                 if (methodInfo == null)
@@ -565,7 +578,7 @@ namespace SpawnDev.WebFS
                     retError = "HandleCallError: Method not found";
                     goto SendResponse;
                 }
-                targetType = methodInfo!.ReflectedType;
+                targetType ??= methodInfo!.ReflectedType;
                 // locate info about the type being called
                 info = ServiceDescriptors.FindServiceDescriptors(targetType)!.FirstOrDefault();
                 // what is left in `msg` is the call arguments

@@ -22,7 +22,7 @@ namespace SpawnDev.WebFS.Host
         /// </summary>
         public DateTimeOffset LastSeen { get; set; }
         /// <summary>
-        /// Url to the domains root Url
+        /// Url to the domain's root Url
         /// </summary>
         public string Url { get; set; }
     }

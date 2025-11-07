@@ -94,11 +94,11 @@ namespace SpawnDev.WebFS
                             ms.Seek(0, SeekOrigin.Begin);
                             if (ms.Length > 0)
                             {
-                                var args = JsonSerializer.Deserialize<List<JsonElement>>(ms, JsonSerializerOptions);
                                 _ = Task.Run(async () =>
                                 {
                                     try
                                     {
+                                        var args = JsonSerializer.Deserialize<List<JsonElement>>(ms, JsonSerializerOptions);
                                         if (args != null)
                                         {
                                             await HandleCall(args);

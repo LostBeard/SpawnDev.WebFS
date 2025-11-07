@@ -11,7 +11,7 @@
 		<DebugType>Embedded</DebugType>
 		<Title>SpawnDev.WebFS</Title>
 		<Authors>LostBeard</Authors>
-		<Description>With SpawnDev.WebFS, Blazor WebAssembly apps can connect to the WebFS.Host app running on the users PC and host a file system via a domain labeled folder.</Description>
+		<Description>Lets Blazor WebAssembly apps connect to the WebFS tray app running on a user's PC and host a file system via a domain labeled folder.</Description>
 		<PackageProjectUrl>https://github.com/LostBeard/SpawnDev.WebFS</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
