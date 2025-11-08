@@ -1,12 +1,11 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.WebWorkers;
-using System.Linq.Expressions;
+using SpawnDev.WebFS.MessagePack;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Array = System.Collections.Generic.List<System.Text.Json.JsonElement>;
 using TypeExtensions = SpawnDev.BlazorJS.TypeExtensions;
 
 namespace SpawnDev.WebFS
@@ -35,7 +34,7 @@ namespace SpawnDev.WebFS
         protected IServiceScope? ServiceProviderScope { get; private set; } = null;
         protected IServiceProvider ScopedServiceProvider { get; private set; }
         protected IServiceCollection ServiceDescriptors { get; private set; }
-        protected Dictionary<string, TaskCompletionSource<Array>> waitingResponse { get; private set; } = new Dictionary<string, TaskCompletionSource<Array>>();
+        protected Dictionary<string, TaskCompletionSource<MessagePackList>> waitingResponse { get; private set; } = new Dictionary<string, TaskCompletionSource<MessagePackList>>();
         object waitingResponseLock = new object();
         protected bool InheritAttributes { get; set; } = true;
         /// <summary>
@@ -108,12 +107,12 @@ namespace SpawnDev.WebFS
 
         public event Action<WebFSDispatcher> ReadyStateChanged;
         protected bool NeedRemoteReadyFlag { get; set; } = true;
-        protected virtual async Task<object?> ReadyFlagReceived(JsonElement? remoteFlagData)
+        protected virtual async Task<object?> ReadyFlagReceived()
         {
 
             return null;
         }
-        protected virtual async Task ReadyFlagResultReceived(JsonElement? flagDataResult)
+        protected virtual async Task ReadyFlagResultReceived()
         {
 
         }
@@ -132,7 +131,7 @@ namespace SpawnDev.WebFS
         /// </summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        protected async Task HandleCall(List<JsonElement> msg)
+        protected async Task HandleCall(MessagePackList msg)
         {
             {
                 try
@@ -152,16 +151,14 @@ namespace SpawnDev.WebFS
                         case RemoteDispatcherMessageType.ReadyFlag:
                             NeedRemoteReadyFlag = false;
                             var remoteNeedsReadyFlag = msg.Shift<bool>();
-                            var args = msg.Shift<JsonElement?>();
                             if (remoteNeedsReadyFlag) SendReadyFlag();
-                            var ret = await ReadyFlagReceived(args);
+                            var ret = await ReadyFlagReceived();
                             SendCall(new object?[] { RemoteDispatcherMessageType.ReadyFlagResult, ret });
                             return;
                         case RemoteDispatcherMessageType.ReadyFlagResult:
-                            var args1 = msg.Shift<JsonElement?>();
                             try
                             {
-                                await ReadyFlagResultReceived(args1);
+                                await ReadyFlagResultReceived();
                                 if (!WhenReady.IsCompleted)
                                 {
                                     Console.WriteLine("Ready set");
@@ -228,7 +225,7 @@ namespace SpawnDev.WebFS
                 });
                 if (resultRequested)
                 {
-                    var tcs = new TaskCompletionSource<Array>();
+                    var tcs = new TaskCompletionSource<MessagePackList>();
                     lock(waitingResponseLock)
                         waitingResponse.Add(msgId, tcs);
                     var finalReturnType = methodInfo.GetFinalReturnType();
@@ -393,7 +390,7 @@ namespace SpawnDev.WebFS
                             for (var n = 0; n < actionArgs.Length; n++)
                             {
                                 // TODO - use post-deserialize
-                                actionArgs[n] = msg.GetItem(actionParameterTypes[n], n, JsonSerializerOptions);
+                                actionArgs[n] = msg.GetItem(actionParameterTypes[n], n);
                             }
                         }
                         argDelegate.DynamicInvoke(actionArgs);
@@ -402,7 +399,7 @@ namespace SpawnDev.WebFS
                 }
                 else if (IsFunc(coreType))
                 {
-                    throw new Exception("Func delegate parameters are not currently supported.");
+                    throw new Exception("Func delegate parameters are not supported.");
                 }
                 else
                 {
@@ -440,7 +437,7 @@ namespace SpawnDev.WebFS
             }
         }
         protected Dictionary<string, List<Action>> RequestCleanup = new Dictionary<string, List<Action>>();
-        protected async Task<object?> PostDeserializeArgument(string msgId, MethodInfo methodInfo, ParameterInfo parameterInfo, bool isReturnValue, Array? callArgs, int paramIndex)
+        protected async Task<object?> PostDeserializeArgument(string msgId, MethodInfo methodInfo, ParameterInfo parameterInfo, bool isReturnValue, MessagePackList? callArgs, int paramIndex)
         {
             var callArgsLength = callArgs?.Count ?? 0;
             var finalType = isReturnValue ? parameterInfo.ParameterType.AsyncReturnType() ?? parameterInfo.ParameterType : parameterInfo.ParameterType;
@@ -469,7 +466,7 @@ namespace SpawnDev.WebFS
                 if (typeof(Delegate).IsAssignableFrom(finalType))
                 {
                     // Create a local action that can be called to relay the call to the remote endpoint
-                    var actionId = callArgs!.GetItem<string>(paramIndex, JsonSerializerOptions);
+                    var actionId = callArgs!.GetItem<string>(paramIndex);
                     if (genericTypes.Length == 0)
                     {
                         return new Action(() => SendCall(new object?[] { actionId }));
@@ -487,13 +484,13 @@ namespace SpawnDev.WebFS
                 }
                 else if (finalType == typeof(ClaimsIdentity))
                 {
-                    var sData = callArgs!.GetItem<string?>(paramIndex, JsonSerializerOptions);
+                    var sData = callArgs!.GetItem<string?>(paramIndex);
                     return string.IsNullOrEmpty(sData) ? null : sData.Base64ToClaimsIdentity();
                 }
                 else if (finalType == typeof(CancellationToken))
                 {
                     // Create a local action that can be called to relay the call to the remote endpoint
-                    var tokenId = callArgs!.GetItem<string?>(paramIndex, JsonSerializerOptions);
+                    var tokenId = callArgs!.GetItem<string?>(paramIndex);
                     if (tokenId == null)
                     {
                         // default token
@@ -514,7 +511,7 @@ namespace SpawnDev.WebFS
                 }
                 else
                 {
-                    return callArgs!.GetItem(finalType, paramIndex, JsonSerializerOptions);
+                    return callArgs!.GetItem(finalType, paramIndex);
                 }
             }
             else if (parameterInfo.HasDefaultValue)
@@ -534,7 +531,7 @@ namespace SpawnDev.WebFS
             }
             return ret;
         }
-        protected async Task<object?[]> PostDeserializeArgs(string msgId, MethodInfo methodInfo, Array? callArgs)
+        protected async Task<object?[]> PostDeserializeArgs(string msgId, MethodInfo methodInfo, MessagePackList? callArgs)
         {
             var methodParams = methodInfo.GetParameters();
             var ret = new object?[methodParams.Length];
@@ -547,7 +544,7 @@ namespace SpawnDev.WebFS
             }
             return ret;
         }
-        async Task HandleCall(List<JsonElement> msg, bool resultRequested)
+        async Task HandleCall(MessagePackList msg, bool resultRequested)
         {
             object? instance = null;
             object? retValue = null;
@@ -559,7 +556,7 @@ namespace SpawnDev.WebFS
             RemoteCallableAttribute? remoteCallableAttr = null;
             ServiceDescriptor? info = null;
             // rebuild request MethodInfo and arguments
-            Array? argsPreDeser = null;
+            MessagePackList? argsPreDeser = null;
             try
             {
                 msgId = msg.Shift<string>();
@@ -582,7 +579,7 @@ namespace SpawnDev.WebFS
                 // locate info about the type being called
                 info = ServiceDescriptors.FindServiceDescriptors(targetType)!.FirstOrDefault();
                 // what is left in `msg` is the call arguments
-                argsPreDeser = msg.Shift<Array>();
+                argsPreDeser = msg.Shift<MessagePackList>();
                 args = argsPreDeser == null ? null : await PostDeserializeArgs(msgId, methodInfo, argsPreDeser);
             }
             catch (Exception ex)
@@ -663,7 +660,7 @@ namespace SpawnDev.WebFS
                 StartRequestCleanup(msgId!);
             }
         }
-        void HandleReply(Array? msg)
+        void HandleReply(MessagePackList? msg)
         {
             if (msg == null) return;
             var msgId = msg.Shift<string>();
@@ -686,14 +683,14 @@ namespace SpawnDev.WebFS
             var ret = new Exception(exception);
             return ret;
         }
-        protected void AddDynamicCallable(string msgId, string key, Func<Array, Task> handler)
+        protected void AddDynamicCallable(string msgId, string key, Func<MessagePackList, Task> handler)
         {
             AddDynamicCallable(key, handler);
             OnRequestCleanup(msgId, () => RemoveDynamicHandler(key));
         }
-        protected void AddDynamicCallable(string key, Func<Array, Task> handler) => DynamicCallables.Add(key, handler);
+        protected void AddDynamicCallable(string key, Func<MessagePackList, Task> handler) => DynamicCallables.Add(key, handler);
         protected bool RemoveDynamicHandler(string key) => DynamicCallables.Remove(key);
-        protected Dictionary<string, Func<Array, Task>> DynamicCallables = new Dictionary<string, Func<Array, Task>>();
+        protected Dictionary<string, Func<MessagePackList, Task>> DynamicCallables = new Dictionary<string, Func<MessagePackList, Task>>();
         protected static Action<T0> CreateTypedActionT1<T0>(Action<object?[]> arg) => new Action<T0>((t0) => arg(new object[] { t0 }));
         protected static Action<T0, T1> CreateTypedActionT2<T0, T1>(Action<object?[]> arg) => new Action<T0, T1>((t0, t1) => arg(new object[] { t0, t1 }));
         protected static Action<T0, T1, T2> CreateTypedActionT3<T0, T1, T2>(Action<object?[]> arg) => new Action<T0, T1, T2>((t0, t1, t2) => arg(new object[] { t0, t1 }));

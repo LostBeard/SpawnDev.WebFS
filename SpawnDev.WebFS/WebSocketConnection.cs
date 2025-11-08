@@ -1,8 +1,9 @@
-﻿using System.Net;
+﻿using MessagePack;
+using SpawnDev.WebFS.MessagePack;
+using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.Versioning;
 using System.Text;
-using System.Text.Json;
 
 namespace SpawnDev.WebFS
 {
@@ -98,8 +99,8 @@ namespace SpawnDev.WebFS
                                 {
                                     try
                                     {
-                                        var args = JsonSerializer.Deserialize<List<JsonElement>>(ms, JsonSerializerOptions);
-                                        if (args != null)
+                                        var args = MessagePackSerializer.Deserialize<MessagePackList>(ms);
+                                        if (args.Length > 0)
                                         {
                                             await HandleCall(args);
                                         }
@@ -152,7 +153,7 @@ namespace SpawnDev.WebFS
             if (_cancellationTokenSourceLocal == null) return;
             try
             {
-                await WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, String.Empty, CancellationToken.None).ConfigureAwait(false);
+                await WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None).ConfigureAwait(false);
                 _cancellationTokenSourceLocal?.Cancel();
             }
             catch { }
@@ -179,19 +180,12 @@ namespace SpawnDev.WebFS
         // the semaphore prevents this error
         SemaphoreSlim sendAsyncLimiter = new SemaphoreSlim(1);
         public int SendTimeout = 10000;
-        public async Task<bool> Send(object data)
+        public async Task<bool> Send(object?[] data)
         {
             try
             {
-                if (data is string json)
-                {
-                    await PipeOutRawString(json);
-                }
-                else
-                {
-                    var jsonS = JsonSerializer.SerializeToUtf8Bytes(data);
-                    await PipeOutRawBytes(jsonS);
-                }
+                var jsonS = MessagePackSerializer.Serialize(data);
+                await PipeOutRawBytes(jsonS);
                 return true;
             }
             catch { }
@@ -275,3 +269,4 @@ namespace SpawnDev.WebFS
         //}
     }
 }
+

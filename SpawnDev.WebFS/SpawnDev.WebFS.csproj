@@ -19,6 +19,7 @@
 		<RepositoryUrl>https://github.com/LostBeard/SpawnDev.WebFS.git</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Blazor;BlazorWebAssembly;WebBrowser;Dokan;FileSystem;WebFS</PackageTags>
+		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -29,6 +30,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="MessagePack" Version="3.1.4" />
 		<PackageReference Include="SpawnDev.BlazorJS" Version="2.41.0" />
 		<PackageReference Include="SpawnDev.BlazorJS.WebWorkers" Version="2.22.0" />
 		<PackageReference Include="DokanNet" Version="2.1.0" />
