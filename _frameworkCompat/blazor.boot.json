@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "SpawnDev.WebFS.Demo",
   "resources": {
-    "hash": "sha256-ZvfU41CFHrxkA2GZhRIUSmiqCn2AnHLiNgJm248/8ys=",
+    "hash": "sha256-c3IgeQikTsGaCmH2yJiQ1R4pxonEjDGHK2gFWuZLhkE=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-BGIuXUFC4riEY5cvbfOE3SsEHVNEupGziC7oLyApCCw="
     },
@@ -9,7 +9,7 @@
       "dotnet.runtime.js": "sha256-aLf0XK8bqX83FXyXydFPTC1FOTq3PaeGDyoDn3uz194="
     },
     "wasmNative": {
-      "dotnet.native.wasm": "sha256-C5d2w0CWL3cJlFR1rnDTI+IsN4xwLCC1VHpU6wj0Ekc="
+      "dotnet.native.wasm": "sha256-LcVz0M+Sxlq6Vwb2SOrr9x75xpoNqLqNT2HsmFKT8+8="
     },
     "icu": {
       "icudt_CJK.dat": "sha256-SZLtQnRc0JkwqHab0VUVP7T3uBPSeYzxzDnpxPpUnHk=",
@@ -19,6 +19,8 @@
     "coreAssembly": {},
     "assembly": {
       "DokanNet.wasm": "sha256-IdpLXe7uwgsJG+WdeeRtFtnso1Bqba2M1QXYIubDBqw=",
+      "MessagePack.wasm": "sha256-EawCBK2tR8aT1ELOkmLYcWhfH0sPJnOP4pJWkHDacbU=",
+      "MessagePack.Annotations.wasm": "sha256-RrNQNbVnCNdsklKGi/BF4Chz1x0rfDKKUFQys+Q+DaQ=",
       "Microsoft.AspNetCore.Authorization.wasm": "sha256-YViJz05R6+JJ6uu34sRcNgNduHPHNVoq7N99a0Tach8=",
       "Microsoft.AspNetCore.Components.wasm": "sha256-drm3VjbUDcgg6JcVPNRLL5kDlYvaO3qbVcWChDpwhUo=",
       "Microsoft.AspNetCore.Components.Forms.wasm": "sha256-1jl/qHoPbKTJKXCWuwEfV+APowk2vCuL6tSBbAIb7gg=",
@@ -41,6 +43,7 @@
       "Microsoft.Extensions.Primitives.wasm": "sha256-pVrYOTfjb2ITls3LKIByW1t8jwOAWFhmkIVDewtJ1GE=",
       "Microsoft.JSInterop.wasm": "sha256-swhTDwzMkRtEP7KgZvcuVy1WbQMFsASKekPTeH/rPVI=",
       "Microsoft.JSInterop.WebAssembly.wasm": "sha256-PbHGoNAYqyOHjH5UNPj5Zh5TGQLL89zj0yL5ocLKaFk=",
+      "Microsoft.NET.StringTools.wasm": "sha256-1RVVzhRL2Hx7k7A5ZItnCkz9CRPPvSmTRUPLCFSRG2o=",
       "SpawnDev.BlazorJS.wasm": "sha256-5VsxJVx8qx9Z1mErMjSVwhU5hPw+ErpQYgkJPhXdtws=",
       "SpawnDev.BlazorJS.WebWorkers.wasm": "sha256-qk3TGvuxRhqkrtzTnI7NHv8+0aqGU8VU+Xno0yQJBsw=",
       "System.IO.Pipelines.wasm": "sha256-JqVBy6SV+3qk+IK3VJiyIDt9CsVk6b1/ytTXmrI4mTM=",
@@ -212,8 +215,8 @@
       "mscorlib.wasm": "sha256-MZJ1V6miMP318lQowft4FPkcszcibPLDTwKj235fSAc=",
       "netstandard.wasm": "sha256-RYAURbR1AHkUZYjKgu+B/i3N3VP4abnAaH+vxwJ8d3c=",
       "System.Private.CoreLib.wasm": "sha256-4YzdATaWUDkUkRpe+hl+T61TaCjRVapVUtqTIai3Gd8=",
-      "SpawnDev.WebFS.wasm": "sha256-GcrATrB2L/aUfkY7BYN4in820A7gemK2/ND+36IL/4s=",
-      "SpawnDev.WebFS.Demo.wasm": "sha256-Oa9o0C5ZQpczg6l/ymlqyqEtOjfq69p1IMWi84lgqMs="
+      "SpawnDev.WebFS.wasm": "sha256-+ovHI2BlU+WfVqzYMUsUuKrVZmahxO7SsuPmvZ+RIAc=",
+      "SpawnDev.WebFS.Demo.wasm": "sha256-BBoTVsDUu5P34B5HnjKLDCVVUc7fXy3zCvCIBpvxWOg="
     },
     "satelliteResources": {
       "de": {
