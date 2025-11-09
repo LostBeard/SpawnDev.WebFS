@@ -6,6 +6,7 @@ using SpawnDev.BlazorJS.WebWorkers;
 using SpawnDev.WebFS.DokanAsync;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
+using File = SpawnDev.BlazorJS.JSObjects.File;
 using FileAccess = DokanNet.FileAccess;
 using FileOptions = System.IO.FileOptions;
 
@@ -16,7 +17,7 @@ namespace SpawnDev.WebFS.Demo
     /// Provides access the the browsers Origin private file system.<br/>
     /// </summary>
     [RemoteCallable]
-    public class WebFSProvider : IAsyncDokanOperations, IBackgroundService
+    public class WebFSProvider : IAsyncDokanOperations
     {
         BlazorJSRuntime JS;
         /// <summary>
@@ -45,9 +46,11 @@ namespace SpawnDev.WebFS.Demo
             // this demo provider uses navigator.storage to provide access to the browser's origin private file system
             using var navigator = JS.Get<Navigator>("navigator");
             StorageManager = navigator.Storage;
-            // tell WebFSClient to connect to the tray app when it can
-            WebFSClient.Enabled = true;
         }
+        /// <summary>
+        /// When set to true, this service will try to connect and host a file system with the WebFS tray app
+        /// </summary>
+        public bool Enabled { get => WebFSClient.Enabled; set => WebFSClient.Enabled = value; }
         protected Dictionary<string, OpenFileContext> _openFiles = new Dictionary<string, OpenFileContext>();
         /// <summary>
         /// Currently open files
@@ -556,6 +559,8 @@ namespace SpawnDev.WebFS.Demo
             Log($"UnlockFile: {info.OpId} {filename}", info);
             return DokanResult.NotImplemented;
         }
+        bool CacheReadHandles = true;
+        bool CacheWriteHandles = true;
         /// <inheritdoc/>
         public async Task<ReadFileResult> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
         {
@@ -565,19 +570,67 @@ namespace SpawnDev.WebFS.Demo
             {
                 try
                 {
-                    using var fsHandle = await GetPathFileHandle(filename);
-                    if (fsHandle == null)
+                    byte[] data;
+                    var useFile = true;
+                    if (useFile)
                     {
-                        return DokanResult.Error;
+                        File? file = ct.Context != null && ct.Context is File uiea ? uiea : null;
+                        if (file == null)
+                        {
+                            using var fsHandle = await GetPathFileHandle(filename);
+                            if (fsHandle == null)
+                            {
+                                return DokanResult.Error;
+                            }
+                            file = await fsHandle.GetFile();
+                            if (ct.Context == null && CacheReadHandles)
+                            {
+                                ct.Context = file;
+                            }
+                        }
+                        var size = file.Size;
+                        var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
+                        if (bytesRead > 0)
+                        {
+                            var endPos = offset + bytesRead;
+                            using var chunkBlob = file.Slice(offset, endPos, "");
+                            using var chunkArrayBuffer = await chunkBlob.ArrayBuffer();
+                            data = chunkArrayBuffer.ReadBytes();
+                        }
+                        else
+                        {
+                            data = new byte[0];
+                        }
+                        if (ct.Context != file) file.Dispose();
                     }
-                    var size = await fsHandle.GetSize();
-                    var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
-                    var data = new byte[bytesRead];
-                    if (bytesRead > 0)
+                    else
                     {
-                        using var fileData = await fsHandle.ReadStream();
-                        if (offset > 0) fileData.Position = offset;
-                        await fileData.ReadExactlyAsync(data);
+                        Uint8Array? file = ct.Context != null && ct.Context is Uint8Array uiea ? uiea : null;
+                        if (file == null)
+                        {
+                            using var fsHandle = await GetPathFileHandle(filename);
+                            if (fsHandle == null)
+                            {
+                                return DokanResult.Error;
+                            }
+                            using var arrayBuffer = await fsHandle.ReadArrayBuffer();
+                            file = new Uint8Array(arrayBuffer);
+                            if (ct.Context == null && CacheReadHandles)
+                            {
+                                ct.Context = file;
+                            }
+                        }
+                        var size = file.ByteLength;
+                        var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
+                        if (bytesRead > 0)
+                        {
+                            data = file.ReadBytes(offset, bytesRead);
+                        }
+                        else
+                        {
+                            data = new byte[0];
+                        }
+                        if (ct.Context != file) file.Dispose();
                     }
                     Log($"Read {data.Length} bytes (maxCount: {maxCount}, offset: {offset}) from {filename}");
                     return new ReadFileResult(NtStatus.Success, data);
@@ -601,20 +654,21 @@ namespace SpawnDev.WebFS.Demo
                 {
                     await writeLock.WaitAsync();
                     releaseLock = true;
-                    var str = ct!.Context == null ? null : ct!.Context as FileSystemHandleWritableStream;
+                    var str = ct!.Context != null && ct!.Context is FileSystemHandleWritableStream stream ? stream : null;
                     if (str == null)
                     {
                         using var st = await GetPathFileHandle(filename);
                         str = await FileSystemHandleWritableStream.Create(st!, true);
-                        ct!.Context = str;
+                        if (ct!.Context == null && CacheWriteHandles) ct!.Context = str;
                     }
                     if (info.WriteToEndOfFile || ct.Info.WriteToEndOfFile)
                     {
                         var nmt = true;
                     }
-                    str.Seek(offset, SeekOrigin.Begin);
+                    str.Position = offset;
                     await str.WriteAsync(buffer);
                     Log($"Wrote {buffer.Length} bytes (offset: {offset}) to {filename}");
+                    if (ct.Context != str) str.Dispose();
                     return new WriteFileResult(buffer.Length);
                 }
                 catch (Exception ex)
