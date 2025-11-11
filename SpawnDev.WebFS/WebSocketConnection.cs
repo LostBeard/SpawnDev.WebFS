@@ -75,9 +75,9 @@ namespace SpawnDev.WebFS
             webSocket = WebSocket;
             var cancellationTokenSourceLocal = new CancellationTokenSource();
             _cancellationTokenSourceLocal = cancellationTokenSourceLocal;
-            DataListenerTask = Task.Run(async () =>
+            DataListenerTask = Task.Run((Func<Task?>)(async () =>
             {
-                SendReadyFlag();
+                base.SendReadyFlag();
                 if (webSocket!.State == WebSocketState.Open)
                 {
                     var buffer = new ArraySegment<byte>(new byte[BufferSize]);
@@ -95,12 +95,12 @@ namespace SpawnDev.WebFS
                             ms.Seek(0, SeekOrigin.Begin);
                             if (ms.Length > 0)
                             {
-                                _ = Task.Run(async () =>
+                                _ = Task.Run((Func<Task?>)(async () =>
                                 {
                                     try
                                     {
-                                        var args = MessagePackSerializer.Deserialize<MessagePackList>(ms);
-                                        if (args.Length > 0)
+                                        var args = MessagePackElement.DeserializeList(ms.ToArray());
+                                        if (args.Count > 0)
                                         {
                                             await HandleCall(args);
                                         }
@@ -113,7 +113,7 @@ namespace SpawnDev.WebFS
                                     {
                                         ms.Dispose();
                                     }
-                                });
+                                }));
                             }
                         }
                         catch (WebSocketException ex)
@@ -136,7 +136,7 @@ namespace SpawnDev.WebFS
                 webSocket.Dispose();
                 cancellationTokenSourceLocal.Dispose();
                 StateHasChange();
-            });
+            }));
             return true;
         }
 
@@ -168,7 +168,6 @@ namespace SpawnDev.WebFS
         {
             if (IsDisposed) return;
             Console.WriteLine($"{this.GetType().Name}.Dispose()");
-            //Disconnect().Wait();
             WebSocket?.Dispose();
             base.Dispose();
             StateHasChange();
@@ -180,18 +179,58 @@ namespace SpawnDev.WebFS
         // the semaphore prevents this error
         SemaphoreSlim sendAsyncLimiter = new SemaphoreSlim(1);
         public int SendTimeout = 10000;
-        public async Task<bool> Send(object?[] data)
+        async Task<bool> Send(object?[] data)
         {
             try
             {
-                var jsonS = MessagePackSerializer.Serialize(data);
-                await PipeOutRawBytes(jsonS);
+                var jsonS = MessagePackElement.Serialize(data);
+                await SendBytes(jsonS);
                 return true;
             }
             catch { }
             return false;
         }
-        async Task PipeOutRawBytes(byte[] data)
+        async Task<bool> SendAsync(object?[] data)
+        {
+            try
+            {
+                await SendStream(data);
+                return true;
+            }
+            catch { }
+            return false;
+        }
+        async Task SendStream(object?[] data)
+        {
+            if (WebSocket == null || WebSocket.State != WebSocketState.Open)
+            {
+                throw new Exception("WebSocket not connected");
+            }
+            try
+            {
+                await sendAsyncLimiter.WaitAsync().ConfigureAwait(false);
+                var writableWebSocketStream = new WritableWebSocketStream(WebSocket);
+                await MessagePackElement.SerializeAsync(writableWebSocketStream, data).ConfigureAwait(false);
+                await writableWebSocketStream.EndMessage();
+            }
+            catch (WebSocketException ex)
+            {
+                // likely just a disconnect
+                // can be ignored
+                var bb = "";
+                throw;
+            }
+            catch (Exception ex)
+            {
+                var bb = "";
+                throw;
+            }
+            finally
+            {
+                sendAsyncLimiter.Release();
+            }
+        }
+        async Task SendBytes(byte[] data)
         {
             if (WebSocket == null || WebSocket.State != WebSocketState.Open)
             {
@@ -199,7 +238,7 @@ namespace SpawnDev.WebFS
             }
             try
             {
-                await sendAsyncLimiter.WaitAsync();
+                await sendAsyncLimiter.WaitAsync().ConfigureAwait(false);
                 var buffer = new ArraySegment<byte>(data);
                 using (var s_cts = new CancellationTokenSource())
                 {
@@ -224,49 +263,12 @@ namespace SpawnDev.WebFS
                 sendAsyncLimiter.Release();
             }
         }
-        async Task PipeOutRawString(string data)
-        {
-            if (WebSocket == null || WebSocket.State != WebSocketState.Open)
-            {
-                throw new Exception("Websocket not connected");
-            }
-            var releaseLimiter = true;
-            try
-            {
-                await sendAsyncLimiter.WaitAsync();
-                var msg = Encoding.UTF8.GetBytes(data);
-                var buffer = new ArraySegment<byte>(msg, 0, msg.Length);
-                using (var s_cts = new CancellationTokenSource())
-                {
-                    s_cts.CancelAfter(SendTimeout);
-                    await WebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, s_cts.Token).ConfigureAwait(false);
-                }
-            }
-            catch (WebSocketException ex)
-            {
-                // likely just a disconnect
-                // can be ignored
-                var bb = "";
-                throw;
-            }
-            catch (Exception ex)
-            {
-                var bb = "";
-                throw;
-            }
-            finally
-            {
-                if (releaseLimiter) sendAsyncLimiter.Release();
-            }
-        }
+        /// <inheritdoc/>
         protected override void SendCall(object?[] args)
         {
-            _ = Send(args);
+            _ = SendAsync(args);
         }
-        //protected override Task<object?> DispatchCallAsync(MethodInfo methodInfo, object?[]? args)
-        //{
-        //    return base.DispatchCallAsync(methodInfo, args);
-        //}
+
     }
 }
 

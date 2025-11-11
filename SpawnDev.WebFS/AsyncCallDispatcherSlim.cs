@@ -70,7 +70,7 @@ namespace SpawnDev.WebFS
                             throw new Exception("Property setter does not exist.");
                         }
                         var serviceType = methodInfo.ReflectedType;
-                        return Call(serviceType, methodInfo, argsExt);
+                        return Call(serviceType!, methodInfo, argsExt);
                     }
                     else if (memberExpression.Member is FieldInfo fieldInfo)
                     {

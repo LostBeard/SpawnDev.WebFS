@@ -93,7 +93,7 @@ namespace SpawnDev.WebFS
             set
             {
                 if (value < 0) throw new ArgumentOutOfRangeException(nameof(value), "Position cannot be less than 0");
-                if (value > Length) throw new ArgumentOutOfRangeException(nameof(value), "Position cannot be greater than Length");
+                if (value > Length) throw new ArgumentOutOfRangeException(nameof(value), "Position cannot be greater than Count");
                 _Position = value;
             }
         }

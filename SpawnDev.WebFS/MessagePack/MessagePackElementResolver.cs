@@ -6,12 +6,12 @@ namespace SpawnDev.WebFS.MessagePack
     /// <summary>
     /// MessagePackList resolver
     /// </summary>
-    public class MessagePackListResolver : IFormatterResolver
+    public class MessagePackElementResolver : IFormatterResolver
     {
         /// <summary>
         /// Instance singleton
         /// </summary>
-        public static readonly IFormatterResolver Instance = new MessagePackListResolver();
+        public static readonly IFormatterResolver Instance = new MessagePackElementResolver();
         /// <summary>
         /// MessagePackListFormatter singleton
         /// </summary>

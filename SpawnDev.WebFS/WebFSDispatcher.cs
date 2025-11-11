@@ -204,6 +204,7 @@ namespace SpawnDev.WebFS
         /// <exception cref="Exception"></exception>
         protected override async Task<object?> Call(Type serviceType, MethodInfo methodInfo, object?[]? args)
         {
+            if (!Ready) throw new Exception("Connection not ready");
             var callError = await PreCallCheck(methodInfo, args);
             if (!string.IsNullOrEmpty(callError)) throw new Exception($"DispatchCall error: {callError}");
             object? retValue = null;

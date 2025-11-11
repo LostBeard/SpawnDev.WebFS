@@ -6,6 +6,6 @@
         ConnectFailed,
         Connecting,
         Verified,
-        Invalid
+        Invalid,
     }
 }

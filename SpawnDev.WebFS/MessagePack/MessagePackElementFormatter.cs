@@ -16,7 +16,14 @@ namespace SpawnDev.WebFS.MessagePack
         /// <inheritdoc/>
         public MessagePackElement? Deserialize(ref MessagePackReader reader, MessagePackSerializerOptions options)
         {
-            return new MessagePackElement(reader.Sequence);
+            if (reader.NextMessagePackType == MessagePackType.Array)
+            {
+                return new MessagePackList(reader.Sequence);
+            }
+            else
+            {
+                return new MessagePackElement(reader.Sequence);
+            }
         }
     }
 }

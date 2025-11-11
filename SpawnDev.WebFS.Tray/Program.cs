@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using SpawnDev.BlazorJS;
 using SpawnDev.DB;
 using SpawnDev.WebFS.Host;
-using SpawnDev.WebFS.MessagePack;
 using System.Diagnostics;
 
 namespace SpawnDev.WebFS.Tray
@@ -31,7 +30,6 @@ namespace SpawnDev.WebFS.Tray
         }
         static async Task<WinFormsApp> InitApp(string[] args)
         {
-            MessagePackList.Init();
             var builder = WinFormsAppBuilder.CreateDefault(args);
             builder.Services.AddBlazorJSRuntime();
             // AppDB

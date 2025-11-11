@@ -31,6 +31,7 @@ if (JS.IsWindow)
     if (runProviderInWorker)
     {
         // running in a window with runProviderInWorker == true. start a worker to host the fs
+        // NOTE: Currently the ui will not display activity if the provider runs in a worker
         var WebWorkerService = host.Services.GetRequiredService<WebWorkerService>();
         var webWorker = await WebWorkerService.GetWebWorker();
         await webWorker!.Set<WebFSProvider, bool>(WebFSProvider => WebFSProvider.Enabled, true);

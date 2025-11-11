@@ -17,8 +17,17 @@
         /// Path
         /// </summary>
         public string Path { get; set; } = "";
+        /// <summary>
+        /// Endpoint url
+        /// </summary>
         public string Url => $"ws://127.0.0.1:{Port}/{Path}";
+        /// <summary>
+        /// Last checked
+        /// </summary>
         public DateTime LastChecked { get; set; } = DateTime.MinValue;
+        /// <summary>
+        /// Last verified
+        /// </summary>
         public DateTime LastVerified { get; set; } = DateTime.MinValue;
     }
 }
