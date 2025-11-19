@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using SpawnDev.BlazorJS;
 using SpawnDev.WebFS.DokanAsync;
 
 namespace SpawnDev.WebFS
@@ -20,6 +21,7 @@ namespace SpawnDev.WebFS
             where TService : class
             where TImplementation : class, TService, IAsyncDokanOperations
         {
+            services.AddBlazorJSRuntime();
 
             // Register our custom WebFS filesystem provider WebFSProvider, which implements IAsyncDokanOperations
             // WebFSProvider is a demo  WebFS provider that allows read and write access to the browser's Origin private file system
@@ -42,6 +44,8 @@ namespace SpawnDev.WebFS
         public static IServiceCollection AddWebFS<TService>(this IServiceCollection services)
             where TService : class, IAsyncDokanOperations
         {
+
+            services.AddBlazorJSRuntime();
 
             // Register our custom WebFS filesystem provider WebFSProvider, which implements IAsyncDokanOperations
             // WebFSProvider is a demo  WebFS provider that allows read and write access to the browser's Origin private file system
