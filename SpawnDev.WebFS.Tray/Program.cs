@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using SpawnDev.BlazorJS;
 using SpawnDev.DB;
 using SpawnDev.WebFS.Host;
 using System.Diagnostics;
@@ -31,14 +30,18 @@ namespace SpawnDev.WebFS.Tray
         static async Task<WinFormsApp> InitApp(string[] args)
         {
             var builder = WinFormsAppBuilder.CreateDefault(args);
-            builder.Services.AddBlazorJSRuntime();
-            // AppDB
+            // Background service manager for auto-started services
+            builder.Services.AddBackgroundServiceManager();
+            // AppDB (Sqlite application database)
             builder.Services.AddAppDB();
             // WebFSServer and WebFSHost
             builder.Services.AddSingleton<WebFSServer>();
             builder.Services.AddSingleton<WebFSHost>();
             // Build
-            return builder.Build();
+            var host = builder.Build();
+            // Start background services
+            await host.Services.StartBackgroundServices();
+            return host;
         }
     }
 }

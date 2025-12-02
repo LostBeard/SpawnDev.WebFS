@@ -31,10 +31,6 @@ namespace SpawnDev.WebFS.Tray
             Visible = false;
             ShowInTaskbar = false;
             InitTray();
-            _ = Task.Run(async () =>
-            {
-                await WinFormsApp.Services.StartBackgroundServices();
-            });
         }
         protected override void OnClosing(CancelEventArgs e)
         {
