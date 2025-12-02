@@ -1,7 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using SpawnDev.DB;
 using SpawnDev.WebFS.Host;
-using System.Diagnostics;
 
 namespace SpawnDev.WebFS.Tray
 {
@@ -13,12 +12,13 @@ namespace SpawnDev.WebFS.Tray
         [STAThread]
         static async Task Main(string[] args)
         {
-            var tp = Process.GetCurrentProcess();
-            var p = Process.GetProcessesByName(tp.ProcessName);
-            var cnt = p.Length;
-            if (cnt > 1) Thread.Sleep(1000); // give running app chance to close
             using var mutex = new Mutex(false, "{425EADEC-F048-476E-8977-DC4D78DF48A1}");
-            if (!mutex.WaitOne(1)) return; // another instance is running
+            if (!mutex.WaitOne(1))
+            {
+                // another instance is running. give it a chance to close, it may have started this process as a restart.
+                Thread.Sleep(1000); 
+                if (!mutex.WaitOne(1)) return; // another instance is still running. exit.
+            }
             var host = await InitApp(args);
             ApplicationConfiguration.Initialize();
             Application.Run(new frmMain(host));
