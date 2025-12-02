@@ -18,14 +18,11 @@ namespace SpawnDev.WebFS.Tray
             var cnt = p.Length;
             if (cnt > 1) Thread.Sleep(1000); // give running app chance to close
             using var mutex = new Mutex(false, "{425EADEC-F048-476E-8977-DC4D78DF48A1}");
-            if (mutex.WaitOne(1))
-            {
-                var host = await InitApp(args);
-                ApplicationConfiguration.Initialize();
-                Application.Run(new frmMain(host));
-                mutex.ReleaseMutex();
-            }
-            mutex.Dispose();
+            if (!mutex.WaitOne(1)) return; // another instance is running
+            var host = await InitApp(args);
+            ApplicationConfiguration.Initialize();
+            Application.Run(new frmMain(host));
+            mutex.ReleaseMutex();
         }
         static async Task<WinFormsApp> InitApp(string[] args)
         {
