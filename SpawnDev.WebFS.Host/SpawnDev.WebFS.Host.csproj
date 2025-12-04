@@ -9,8 +9,8 @@
 		<SupportedPlatform Include="windows" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="SpawnDev.BlazorJS.Cryptography" Version="2.2.0" />
-		<PackageReference Include="System.Data.SQLite.Core" Version="1.0.118" />
+		<PackageReference Include="SpawnDev.BlazorJS.Cryptography" Version="2.4.0" />
+		<PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
 		<PackageReference Include="Dapper.Contrib" Version="2.0.78" />
 		<PackageReference Include="System.Management" Version="9.0.10" />
 	</ItemGroup>

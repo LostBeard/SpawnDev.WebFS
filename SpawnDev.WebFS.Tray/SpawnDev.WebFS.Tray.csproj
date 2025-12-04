@@ -8,13 +8,13 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<ApplicationIcon>mapped_site.ico</ApplicationIcon>
 		<Deterministic>false</Deterministic>
-		<Version>1.1.1</Version>
-		<AssemblyVersion>1.1.1</AssemblyVersion>
+		<Version>1.3.0</Version>
+		<AssemblyVersion>1.3.0</AssemblyVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<Content Include="Drivers\DokanSetup.exe">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="mapped_site.ico" />
 	</ItemGroup>
