@@ -22,6 +22,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\SpawnDev.WebFS\SpawnDev.WebFS.csproj" />
+		<!-- <PackageReference Include="SpawnDev.WebFS" Version="1.3.0" /> -->
 	</ItemGroup>
 
 </Project>

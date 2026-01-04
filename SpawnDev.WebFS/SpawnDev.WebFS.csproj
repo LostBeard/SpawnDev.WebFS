@@ -31,8 +31,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="MessagePack" Version="3.1.4" />
-		<PackageReference Include="SpawnDev.BlazorJS" Version="2.47.0" />
-		<PackageReference Include="SpawnDev.BlazorJS.WebWorkers" Version="2.25.0" />
+		<PackageReference Include="SpawnDev.BlazorJS" Version="2.50.0" />
+		<PackageReference Include="SpawnDev.BlazorJS.WebWorkers" Version="2.27.0" />
 		<PackageReference Include="DokanNet" Version="2.1.0" />
 	</ItemGroup>
 
