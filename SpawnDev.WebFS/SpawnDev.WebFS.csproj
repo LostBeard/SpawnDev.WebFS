@@ -4,7 +4,7 @@
 		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-		<Version>1.3.0</Version>
+		<Version>2.0.0</Version>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<EmbedAllSources>true</EmbedAllSources>
@@ -31,8 +31,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="MessagePack" Version="3.1.4" />
-		<PackageReference Include="SpawnDev.BlazorJS" Version="2.50.0" />
-		<PackageReference Include="SpawnDev.BlazorJS.WebWorkers" Version="2.27.0" />
+		<PackageReference Include="SpawnDev.BlazorJS" Version="3.0.0" />
+		<PackageReference Include="SpawnDev.BlazorJS.WebWorkers" Version="3.0.0" />
 		<PackageReference Include="DokanNet" Version="2.1.0" />
 	</ItemGroup>
 

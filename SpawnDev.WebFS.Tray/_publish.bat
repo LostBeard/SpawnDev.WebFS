@@ -31,7 +31,7 @@ set ISCC_PATH="C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 %ISCC_PATH% "/DMyAppVersion=%APP_VERSION%" /Q _setupConfig.iss
 
 if %errorlevel% equ 0 (
-    echo Setup compilation successful!
+    echo Setup compilation successful.
 ) else (
     echo Setup compilation failed.
 )
