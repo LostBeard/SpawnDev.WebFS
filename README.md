@@ -37,7 +37,7 @@ The WebFS tray app is required for both development and production use. In devel
 
 `Demo.csproj`
 ```xml
-    <PackageReference Include="SpawnDev.WebFS" Version="1.0.0" />
+    <PackageReference Include="SpawnDev.WebFS" Version="2.0.0" />
 ```
 
 - Register required services and your file system provider class that implements IAsyncDokanOperations
