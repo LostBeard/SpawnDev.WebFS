@@ -1,4 +1,5 @@
 ﻿using DokanNet;
+using System.Text.Json.Serialization;
 
 namespace SpawnDev.WebFS
 {
@@ -24,11 +25,14 @@ namespace SpawnDev.WebFS
         /// <summary>
         /// Handle Id
         /// </summary>
+
+        [JsonPropertyName("OpId")]
         public string OpId { get; init; }
 
         // Summary:
         //     Gets or sets a value indicating whether the file has to be delete during the
         //     DokanNet.IDokanOperations.Cleanup(System.String,DokanNet.IDokanFileInfo) event.
+        [JsonPropertyName("DeleteOnClose")]
         public bool DeleteOnClose { get; set; }
 
         //
@@ -36,11 +40,13 @@ namespace SpawnDev.WebFS
         //     Gets or sets a value indicating whether it requesting a directory file. Must
         //     be set in DokanNet.IDokanOperations.CreateFile(System.String,DokanNet.FileAccess,System.IO.FileShare,System.IO.FileMode,System.IO.FileOptions,System.IO.FileAttributes,DokanNet.IDokanFileInfo)
         //     if the file appear to be a folder.
+        [JsonPropertyName("IsDirectory")]
         public bool IsDirectory { get; set; }
 
         //
         // Summary:
         //     If true, write to the current end of file instead of using the Offset parameter.
+        [JsonPropertyName("WriteToEndOfFile")]
         public bool WriteToEndOfFile { get; set; }
 
         ////

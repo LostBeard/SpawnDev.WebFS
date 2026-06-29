@@ -1,7 +1,6 @@
 ﻿using DokanNet;
 using SpawnDev.BlazorJS.WebWorkers;
 using System.Security.AccessControl;
-using SpawnDev.WebFS;
 using FileAccess = DokanNet.FileAccess;
 
 namespace SpawnDev.WebFS.DokanAsync

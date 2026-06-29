@@ -32,7 +32,7 @@ namespace SpawnDev.WebFS
         /// <summary>
         /// The current tray app dispatcher
         /// </summary>
-        public WebSocketConnection? Tray { get; private set; }
+        public IWebSocketConnection? Tray { get; private set; }
         /// <summary>
         /// Returns true if connected to the tray app
         /// </summary>
@@ -105,16 +105,16 @@ namespace SpawnDev.WebFS
             _disconnectRequested?.Cancel();
             _disconnectRequested?.Dispose();
             _disconnectRequested = null;
-            if (WebSocket != null)
+            if (Tray != null)
             {
                 try
                 {
-                    await WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "close", CancellationToken.None);
+                    await Tray.Disconnect();
                 }
                 catch { }
             }
         }
-        WebSocket? WebSocket = null;
+        //WebSocket? WebSocket = null;
         Task? _ConnectTask = null;
         /// <summary>
         /// Connect and enable auto-connect
@@ -141,27 +141,24 @@ namespace SpawnDev.WebFS
             var endpointsCount = Endpoints.Count;
             while (!token.IsCancellationRequested)
             {
-
                 var endPoint = GetConnectEndpoint();
                 endPoint.LastChecked = DateTime.UtcNow;
                 endPoint.Result = EndpointResult.Unknown;
                 Endpoint = endPoint;
-                using var webSocket = new ClientWebSocket();
-                WebSocket = webSocket;
-                try
+                if (OperatingSystem.IsBrowser() && true)
                 {
-                    using var connectTCS = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    await webSocket.ConnectAsync(new Uri(endPoint.Url), connectTCS.Token);
+                    Tray = await WebSocketConnectionJS.ConnectAsync(ServiceProvider, endPoint.Url, token);
                 }
-                catch { }
-                var connected = webSocket.State == WebSocketState.Open;
-                if (connected)
+                else
+                {
+                    Tray = await WebSocketConnection.ConnectAsync(ServiceProvider, endPoint.Url, token);
+                }
+                if (Tray != null)
                 {
                     var _disconnectTCS = new TaskCompletionSource();
-                    Tray = new WebSocketConnection(ServiceProvider, webSocket, endPoint.Url);
                     Tray.OnStateChanged += (_) =>
                     {
-                        if (webSocket.State != WebSocketState.Open)
+                        if (!Tray.IsConnected)
                         {
                             _disconnectTCS?.TrySetResult();
                         }
@@ -190,7 +187,7 @@ namespace SpawnDev.WebFS
                     Tray.Dispose();
                     Tray = null;
                 }
-                WebSocket = null;
+                //WebSocket = null;
                 if (endPoint.Result == EndpointResult.Unknown)
                 {
                     endPoint.Result = EndpointResult.Invalid;

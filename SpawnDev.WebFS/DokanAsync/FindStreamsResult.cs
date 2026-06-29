@@ -1,13 +1,20 @@
 ﻿using DokanNet;
+using System.Text.Json.Serialization;
 
 namespace SpawnDev.WebFS.DokanAsync
 {
     public class FindStreamsResult : DokanAsyncResult
     {
         public static implicit operator FindStreamsResult(NtStatus status) => new FindStreamsResult(status);
-        public IList<FileInformation>? Streams { get; set; }
+
+
+        /// <summary>
+        /// TODO : Streams may not serialize/deserialize properly
+        /// </summary>
+        [JsonPropertyName("Streams")]
+        public List<FileInformationClass>? Streams { get; set; }
         public FindStreamsResult() { }
-        public FindStreamsResult(NtStatus status, IList<FileInformation>? streams = default)
+        public FindStreamsResult(NtStatus status, List<FileInformationClass>? streams = default)
         {
             Status = status;
             Streams = streams;

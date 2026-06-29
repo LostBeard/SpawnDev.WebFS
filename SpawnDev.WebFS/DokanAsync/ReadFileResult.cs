@@ -1,10 +1,12 @@
 ﻿using DokanNet;
+using System.Text.Json.Serialization;
 
 namespace SpawnDev.WebFS.DokanAsync
 {
     public class ReadFileResult : DokanAsyncResult
     {
         public static implicit operator ReadFileResult(NtStatus status) => new ReadFileResult(status);
+        [JsonPropertyName("Data")]
         public byte[]? Data { get; set; }
         public ReadFileResult() { }
         public ReadFileResult(NtStatus status, byte[]? data = null)

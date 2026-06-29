@@ -6,12 +6,12 @@ namespace SpawnDev.WebFS.MessagePack
     /// <summary>
     /// MessagePackList for reading lists of varying types 1 at a time
     /// </summary>
-    public class MessagePackList : MessagePackElement
+    public class MessagePackList : MessagePackElement, IMessagePackList
     {
         /// <summary>
         /// The items in the list
         /// </summary>
-        public List<MessagePackElement> Items { get; } = new List<MessagePackElement>();
+        List<MessagePackElement> Items { get; } = new List<MessagePackElement>();
         /// <summary>
         /// The number of elements in the list
         /// </summary>
@@ -121,5 +121,7 @@ namespace SpawnDev.WebFS.MessagePack
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         public T FirstOrDefault<T>() => Count == 0 ? default! : GetItem<T>(0);
+
+        public IMessagePackElement GetElement(int index) => Items[index];
     }
 }

@@ -174,6 +174,43 @@ namespace SpawnDev.WebFS
                 _Length = Position;
             }
         }
+        public Task WriteAsync(Uint8Array buffer, int offset = 0)
+        {
+            return WriteAsync(buffer, offset, (int)buffer.Length, CancellationToken.None);
+        }
+        ///<inheritdoc/>
+        public async Task WriteAsync(Uint8Array buffer, int offset, int count, CancellationToken cancellationToken)
+        {
+            if (FSStream == null) throw new Exception("Invalid state");
+            // seek if needed
+            if (_PositionReal != Position)
+            {
+                if (Writer != null)
+                {
+                    Writer.ReleaseLock();
+                    Writer.Dispose();
+                    Writer = null;
+                }
+                await FSStream.Seek((ulong)Position);
+                _PositionReal = Position;
+            }
+            Writer ??= FSStream.GetWriter();
+            if (offset != 0 || count != buffer.Length)
+            {
+                using var tmp = buffer.SubArray(offset, offset + count);
+                await Writer.Write(tmp);
+            }
+            else
+            {
+                await Writer.Write(buffer);
+            }
+            _Position += count;
+            _PositionReal = _Position;
+            if (Position > Length)
+            {
+                _Length = Position;
+            }
+        }
         ///<inheritdoc/>
         protected override void Dispose(bool disposing)
         {

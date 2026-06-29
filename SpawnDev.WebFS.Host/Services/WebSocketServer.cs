@@ -141,7 +141,7 @@ namespace SpawnDev.WebFS.Host
             }
             cancellationTokenSourceLocal.Dispose();
         }
-        private void Conn_OnStateChanged(WebSocketConnection webSocket)
+        private void Conn_OnStateChanged(IWebSocketConnection webSocket)
         {
             if (webSocket.IsClosed)
             {
@@ -153,7 +153,7 @@ namespace SpawnDev.WebFS.Host
                         _Connections.Remove(webSocket.ConnectionId);
                     }
                 }
-                OnDisconnected?.Invoke(this, webSocket);
+                OnDisconnected?.Invoke(this, (WebSocketConnection)webSocket);
             }
         }
     }

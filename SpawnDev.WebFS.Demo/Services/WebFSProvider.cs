@@ -17,7 +17,7 @@ namespace SpawnDev.WebFS.Demo
     /// Provides access the the browsers Origin private file system.<br/>
     /// </summary>
     [RemoteCallable]
-    public class WebFSProvider : IAsyncDokanOperations
+    public class WebFSProvider : IAsyncDokanOperationsJS
     {
         BlazorJSRuntime JS;
         /// <summary>
@@ -496,7 +496,7 @@ namespace SpawnDev.WebFS.Demo
                         }
                     }
                 }
-                return Trace(nameof(FindFiles), ct, new FindFilesResult(DokanResult.Success, files));
+                return Trace(nameof(FindFiles), ct, new FindFilesResult(DokanResult.Success, files.Select(o => (FileInformationClass)o).ToList()));
             }
             catch (Exception ex)
             {
@@ -561,90 +561,139 @@ namespace SpawnDev.WebFS.Demo
         }
         bool CacheReadHandles = true;
         bool CacheWriteHandles = true;
+        ///// <inheritdoc/>
+        //public async Task<byte[]?> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
+        //{
+        //    Log($"ReadFile: {info.OpId} {filename}", info);
+
+        //    if (GetContext(info, out var ct))
+        //    {
+        //        try
+        //        {
+        //            byte[] data;
+        //            var useFile = true;
+        //            if (useFile)
+        //            {
+        //                File? file = ct.Context != null && ct.Context is File uiea ? uiea : null;
+        //                if (file == null)
+        //                {
+        //                    using var fsHandle = await GetPathFileHandle(filename);
+        //                    if (fsHandle == null)
+        //                    {
+        //                        return null;
+        //                    }
+        //                    file = await fsHandle.GetFile();
+        //                    if (ct.Context == null && CacheReadHandles)
+        //                    {
+        //                        ct.Context = file;
+        //                    }
+        //                }
+        //                var size = file.Size;
+        //                var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
+        //                if (bytesRead > 0)
+        //                {
+        //                    var endPos = offset + bytesRead;
+        //                    using var chunkBlob = file.Slice(offset, endPos, "");
+        //                    using var chunkArrayBuffer = await chunkBlob.ArrayBuffer();
+        //                    data = chunkArrayBuffer.ReadBytes();
+        //                }
+        //                else
+        //                {
+        //                    data = new byte[0];
+        //                }
+        //                if (ct.Context != file) file.Dispose();
+        //            }
+        //            else
+        //            {
+        //                Uint8Array? file = ct.Context != null && ct.Context is Uint8Array uiea ? uiea : null;
+        //                if (file == null)
+        //                {
+        //                    using var fsHandle = await GetPathFileHandle(filename);
+        //                    if (fsHandle == null)
+        //                    {
+        //                        return null;
+        //                    }
+        //                    using var arrayBuffer = await fsHandle.ReadArrayBuffer();
+        //                    file = new Uint8Array(arrayBuffer);
+        //                    if (ct.Context == null && CacheReadHandles)
+        //                    {
+        //                        ct.Context = file;
+        //                    }
+        //                }
+        //                var size = file.ByteLength;
+        //                var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
+        //                if (bytesRead > 0)
+        //                {
+        //                    data = file.ReadBytes(offset, bytesRead);
+        //                }
+        //                else
+        //                {
+        //                    data = new byte[0];
+        //                }
+        //                if (ct.Context != file) file.Dispose();
+        //            }
+        //            Log($"Read {data.Length} bytes (maxCount: {maxCount}, offset: {offset}) from {filename}");
+        //            return data;
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Log($"ReadFile error: {ex.ToString()}");
+        //        }
+        //    }
+        //    return null;
+        //}
         /// <inheritdoc/>
-        public async Task<ReadFileResult> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
+        public async Task<Uint8Array?> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
         {
             Log($"ReadFile: {info.OpId} {filename}", info);
-
             if (GetContext(info, out var ct))
             {
                 try
                 {
-                    byte[] data;
-                    var useFile = true;
-                    if (useFile)
+                    Uint8Array? data;
+                    File? file = ct.Context != null && ct.Context is File uiea ? uiea : null;
+                    if (file == null)
                     {
-                        File? file = ct.Context != null && ct.Context is File uiea ? uiea : null;
-                        if (file == null)
+                        using var fsHandle = await GetPathFileHandle(filename);
+                        if (fsHandle == null)
                         {
-                            using var fsHandle = await GetPathFileHandle(filename);
-                            if (fsHandle == null)
-                            {
-                                return DokanResult.Error;
-                            }
-                            file = await fsHandle.GetFile();
-                            if (ct.Context == null && CacheReadHandles)
-                            {
-                                ct.Context = file;
-                            }
+                            return null;
                         }
-                        var size = file.Size;
-                        var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
-                        if (bytesRead > 0)
+                        file = await fsHandle.GetFile();
+                        if (ct.Context == null && CacheReadHandles)
                         {
-                            var endPos = offset + bytesRead;
-                            using var chunkBlob = file.Slice(offset, endPos, "");
-                            using var chunkArrayBuffer = await chunkBlob.ArrayBuffer();
-                            data = chunkArrayBuffer.ReadBytes();
+                            ct.Context = file;
                         }
-                        else
-                        {
-                            data = new byte[0];
-                        }
-                        if (ct.Context != file) file.Dispose();
+                    }
+                    var size = file.Size;
+                    var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
+                    if (bytesRead > 0)
+                    {
+                        var endPos = offset + bytesRead;
+                        using var chunkBlob = file.Slice(offset, endPos, "");
+                        using var chunkArrayBuffer = await chunkBlob.ArrayBuffer();
+                        data = new Uint8Array(chunkArrayBuffer);
                     }
                     else
                     {
-                        Uint8Array? file = ct.Context != null && ct.Context is Uint8Array uiea ? uiea : null;
-                        if (file == null)
-                        {
-                            using var fsHandle = await GetPathFileHandle(filename);
-                            if (fsHandle == null)
-                            {
-                                return DokanResult.Error;
-                            }
-                            using var arrayBuffer = await fsHandle.ReadArrayBuffer();
-                            file = new Uint8Array(arrayBuffer);
-                            if (ct.Context == null && CacheReadHandles)
-                            {
-                                ct.Context = file;
-                            }
-                        }
-                        var size = file.ByteLength;
-                        var bytesRead = Math.Max(0, Math.Min(size - offset, maxCount));
-                        if (bytesRead > 0)
-                        {
-                            data = file.ReadBytes(offset, bytesRead);
-                        }
-                        else
-                        {
-                            data = new byte[0];
-                        }
-                        if (ct.Context != file) file.Dispose();
+                        data = new Uint8Array();
                     }
+                    if (ct.Context != file) file.Dispose();
                     Log($"Read {data.Length} bytes (maxCount: {maxCount}, offset: {offset}) from {filename}");
-                    return new ReadFileResult(NtStatus.Success, data);
+                    return data;
                 }
                 catch (Exception ex)
                 {
                     Log($"ReadFile error: {ex.ToString()}");
                 }
             }
-            return DokanResult.Error;
+            return null;
         }
         SemaphoreSlim writeLock = new SemaphoreSlim(1);
+
+
         /// <inheritdoc/>
-        public async Task<WriteFileResult> WriteFile(string filename, byte[] buffer, long offset, AsyncDokanFileInfo info)
+        public async Task<WriteFileResult> WriteFile(string filename, Uint8Array buffer, long offset, AsyncDokanFileInfo info)
         {
             Log($"WriteFile: {info.OpId} {filename}", offset, buffer.Length, info);
             if (GetContext(info, out var ct))
@@ -669,7 +718,7 @@ namespace SpawnDev.WebFS.Demo
                     await str.WriteAsync(buffer);
                     Log($"Wrote {buffer.Length} bytes (offset: {offset}) to {filename}");
                     if (ct.Context != str) str.Dispose();
-                    return new WriteFileResult(buffer.Length);
+                    return new WriteFileResult((int)buffer.Length);
                 }
                 catch (Exception ex)
                 {
@@ -682,6 +731,45 @@ namespace SpawnDev.WebFS.Demo
             }
             return DokanResult.Error;
         }
+        ///// <inheritdoc/>
+        //public async Task<WriteFileResult> WriteFile(string filename, byte[] buffer, long offset, AsyncDokanFileInfo info)
+        //{
+        //    Log($"WriteFile: {info.OpId} {filename}", offset, buffer.Length, info);
+        //    if (GetContext(info, out var ct))
+        //    {
+        //        var releaseLock = false;
+        //        try
+        //        {
+        //            await writeLock.WaitAsync();
+        //            releaseLock = true;
+        //            var str = ct!.Context != null && ct!.Context is FileSystemHandleWritableStream stream ? stream : null;
+        //            if (str == null)
+        //            {
+        //                using var st = await GetPathFileHandle(filename);
+        //                str = await FileSystemHandleWritableStream.Create(st!, true);
+        //                if (ct!.Context == null && CacheWriteHandles) ct!.Context = str;
+        //            }
+        //            if (info.WriteToEndOfFile || ct.Info.WriteToEndOfFile)
+        //            {
+        //                var nmt = true;
+        //            }
+        //            str.Position = offset;
+        //            await str.WriteAsync(buffer);
+        //            Log($"Wrote {buffer.Length} bytes (offset: {offset}) to {filename}");
+        //            if (ct.Context != str) str.Dispose();
+        //            return new WriteFileResult(buffer.Length);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Log($"WriteFile error: {ex.ToString()}");
+        //        }
+        //        finally
+        //        {
+        //            if (releaseLock) writeLock.Release();
+        //        }
+        //    }
+        //    return DokanResult.Error;
+        //}
         /// <inheritdoc/>
         public async Task<DokanAsyncResult> SetAllocationSize(string filename, long length, AsyncDokanFileInfo info)
         {
@@ -808,7 +896,7 @@ namespace SpawnDev.WebFS.Demo
             throw new NotImplementedException();
         }
         /// <inheritdoc/>
-        public Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurity security, AccessControlSections sections, AsyncDokanFileInfo info)
+        public Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurityClass security, AccessControlSections sections, AsyncDokanFileInfo info)
         {
             Log($"SetFileSecurity: {info.OpId} {filename}", info);
             throw new NotImplementedException();

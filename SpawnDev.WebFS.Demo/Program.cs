@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using SpawnDev;
 using SpawnDev.BlazorJS;
+using SpawnDev.BlazorJS.MessagePack;
 using SpawnDev.BlazorJS.WebWorkers;
 using SpawnDev.WebFS;
 using SpawnDev.WebFS.Demo;
+using System.Text.Json.Serialization;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -15,7 +17,9 @@ builder.Services.AddWebWorkerService();
 
 // Registers WebFSProvider, the demo WebFS provider as WebFSProvider and IAsyncDokanOperations
 // Registers WebFSClient which connects to the tray app when its Enabled property is set to true
-builder.Services.AddWebFS<WebFSProvider>();
+builder.Services.AddWebFSJS<WebFSProvider>();
+
+await MessagePackSerializer.Init();
 
 // If this is a window, add window componenets
 if (JS.IsWindow)
@@ -30,6 +34,7 @@ var host = await builder.Build().StartBackgroundServices();
 // If this is a window, start the file system provider based on scope we want to run it in
 if (JS.IsWindow)
 {
+    // !!!!!!!!!!!!!!!! CHANGE THIS BELOW TO CHANGE WHERE THE FS PROVIDER RUNS !!!!!!!!!!!!!!!!
     // providerScope options:
     // Window (default if not one of others) - runs in the window scope. Best for testing.
     // DedicatedWorker - runs in a dedicated worker. Breakpoints and debugging not supported in workers.
@@ -54,7 +59,7 @@ if (JS.IsWindow)
         await webWorker!.Set<WebFSProvider, bool>(WebFSProvider => WebFSProvider.Enabled, true);
     }
     else
-    { 
+    {
         // run in the Window scope
         var WebFSProvider = host.Services.GetRequiredService<WebFSProvider>();
         WebFSProvider.Enabled = true;
@@ -62,3 +67,17 @@ if (JS.IsWindow)
 }
 // Startup using BlazorJSRunAsync
 await host.BlazorJSRunAsync();
+
+
+public class Temp1
+{
+    [JsonPropertyName("NameType")]
+    public string NameType { get; set; } = "MyData";
+    [JsonPropertyName("DataTemp")]
+    public Temp2 DataTemp { get; set; }
+}
+public class Temp2
+{
+    [JsonPropertyName("Data")]
+    public byte[] Data { get; set; }
+}

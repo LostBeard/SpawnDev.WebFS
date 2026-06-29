@@ -286,7 +286,7 @@ namespace SpawnDev.WebFS.Host
                     };
                     files.Add(finfo);
                 }
-                return new FindFilesResult(DokanResult.Success, files);
+                return new FindFilesResult(DokanResult.Success, files.Select(o => (FileInformationClass)o).ToList());
             }
             else
             {
@@ -343,13 +343,17 @@ namespace SpawnDev.WebFS.Host
                         var tmp = await conn!.Run<IAsyncDokanOperations, GetFileInformationResult>(s => s.GetFileInformation(fPath, info)).WaitAsync(TimeSpan.FromSeconds(DefaultTimeoutSeconds)).ConfigureAwait(false);
                         if (tmp != null)
                         {
-                            var fileinfo = new FileInformation { FileName = filename };
-                            fileinfo.Attributes = tmp.FileInfo.Attributes;
-                            fileinfo.LastAccessTime = tmp.FileInfo.LastAccessTime;
-                            fileinfo.LastWriteTime = tmp.FileInfo.LastWriteTime;
-                            fileinfo.CreationTime = tmp.FileInfo.CreationTime;
-                            fileinfo.Length = tmp.FileInfo.Length;
-                            tmp.FileInfo = fileinfo;
+                            if (tmp.FileInfo != null)
+                            {
+                                var fileInfoSrc = (FileInformation)tmp.FileInfo;
+                                var fileinfo = new FileInformation { FileName = filename };
+                                fileinfo.Attributes = tmp.FileInfo.Attributes;
+                                fileinfo.LastAccessTime = fileInfoSrc.LastAccessTime;
+                                fileinfo.LastWriteTime = fileInfoSrc.LastWriteTime;
+                                fileinfo.CreationTime = fileInfoSrc.CreationTime;
+                                fileinfo.Length = tmp.FileInfo.Length;
+                                tmp.FileInfo = fileinfo;
+                            }
                             return tmp;
                         }
                     }
@@ -405,7 +409,7 @@ namespace SpawnDev.WebFS.Host
             }
             return DokanResult.Error;
         }
-        public async Task<ReadFileResult> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
+        public async Task<byte[]?> ReadFile(string filename, long offset, long maxCount, AsyncDokanFileInfo info)
         {
             if (GetProvider(filename, out var fHost, out var fPath, out var conn))
             {
@@ -413,7 +417,7 @@ namespace SpawnDev.WebFS.Host
                 {
                     try
                     {
-                        var tmp = await conn!.Run<IAsyncDokanOperations, ReadFileResult>(s => s.ReadFile(fPath, offset, maxCount, info)).WaitAsync(TimeSpan.FromSeconds(DefaultTimeoutSeconds)).ConfigureAwait(false);
+                        var tmp = await conn!.Run<IAsyncDokanOperations, byte[]?>(s => s.ReadFile(fPath, offset, maxCount, info)).WaitAsync(TimeSpan.FromSeconds(DefaultTimeoutSeconds)).ConfigureAwait(false);
                         if (tmp != null)
                         {
                             return tmp;
@@ -421,11 +425,11 @@ namespace SpawnDev.WebFS.Host
                     }
                     catch (Exception ex)
                     {
-                        return DokanResult.Error;
+                        return null;
                     }
                 }
             }
-            return DokanResult.Error;
+            return null;
         }
         public async Task<WriteFileResult> WriteFile(string filename, byte[] buffer, long offset, AsyncDokanFileInfo info)
         {
@@ -575,7 +579,7 @@ namespace SpawnDev.WebFS.Host
         {
             return DokanResult.NotImplemented;
         }
-        public async Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurity security, AccessControlSections sections, AsyncDokanFileInfo info)
+        public async Task<DokanAsyncResult> SetFileSecurity(string filename, FileSystemSecurityClass security, AccessControlSections sections, AsyncDokanFileInfo info)
         {
             return DokanResult.NotImplemented;
         }

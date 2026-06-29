@@ -64,21 +64,21 @@ namespace SpawnDev.WebFS.DokanAsync
         public NtStatus FindFiles(string fileName, out IList<FileInformation> files, IDokanFileInfo info)
         {
             var result = Operations.FindFiles(fileName, AsyncDokanFileInfo.From(info)).Result;
-            files = result.Files;
+            files = result.Files?.Select(o => (FileInformation)o).ToList();
             return result.Status;
         }
 
         public NtStatus FindFilesWithPattern(string fileName, string searchPattern, out IList<FileInformation> files, IDokanFileInfo info)
         {
             var result = Operations.FindFilesWithPattern(fileName, searchPattern, AsyncDokanFileInfo.From(info)).Result;
-            files = result.Files;
+            files = result.Files?.Select(o => (FileInformation)o).ToList();
             return result.Status;
         }
 
         public NtStatus FindStreams(string fileName, out IList<FileInformation> streams, IDokanFileInfo info)
         {
             var result = Operations.FindStreams(fileName, AsyncDokanFileInfo.From(info)).Result;
-            streams = result.Streams;
+            streams = result.Streams?.Select(o => (FileInformation)o).ToList();
             return result.Status;
         }
 
@@ -142,12 +142,16 @@ namespace SpawnDev.WebFS.DokanAsync
         public NtStatus ReadFile(string fileName, byte[] buffer, out int bytesRead, long offset, IDokanFileInfo info)
         {
             var result = Operations.ReadFile(fileName, offset, buffer.Length, AsyncDokanFileInfo.From(info)).Result;
-            bytesRead = result.Data?.Length ?? 0;
-            if (result.Data != null && result.Data.Length > 0)
+            bytesRead = result?.Length ?? 0;
+            if (result != null)
             {
-                Buffer.BlockCopy(result.Data, 0, buffer, 0, bytesRead);
+                if (result.Length > 0)
+                {
+                    Buffer.BlockCopy(result, 0, buffer, 0, bytesRead);
+                }
+                return NtStatus.Success;
             }
-            return result.Status;
+            return NtStatus.Error;
         }
 
         public NtStatus SetAllocationSize(string fileName, long length, IDokanFileInfo info)

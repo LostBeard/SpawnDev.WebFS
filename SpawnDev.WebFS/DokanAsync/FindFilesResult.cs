@@ -1,27 +1,28 @@
 ﻿using DokanNet;
+using System.Text.Json.Serialization;
 
 namespace SpawnDev.WebFS.DokanAsync
 {
-    public class CreateFileResult : DokanAsyncResult
-    {
-        public static implicit operator CreateFileResult(NtStatus status) => new CreateFileResult(status);
-        public bool IsDirectory { get; set; }
-        public CreateFileResult() { }
-        public CreateFileResult(NtStatus status, bool isDirectory = false)
-        {
-            Status = status;
-            IsDirectory = isDirectory;
-        }
-    }
     public class FindFilesResult : DokanAsyncResult
     {
         public static implicit operator FindFilesResult(NtStatus status) => new FindFilesResult(status);
-        public IList<FileInformation>? Files { get; set; }
+
+
+        /// <summary>
+        /// TODO : Files may not serialize/deserialize properly
+        /// </summary>
+        [JsonPropertyName("Files")]
+        public List<FileInformationClass>? Files { get; set; }
         public FindFilesResult() { }
-        public FindFilesResult(NtStatus status, IList<FileInformation>? files = default)
+        public FindFilesResult(NtStatus status, List<FileInformationClass>? files = default)
         {
             Status = status;
             Files = files;
         }
+        //public FindFilesResult(NtStatus status, List<FileInformation> files)
+        //{
+        //    Status = status;
+        //    Files = files?.Select(o => (FileInformationClass)o).ToList();
+        //}
     }
 }

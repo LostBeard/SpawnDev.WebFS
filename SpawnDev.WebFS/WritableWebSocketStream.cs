@@ -1,11 +1,8 @@
-﻿
-using System;
-using System.Net.WebSockets;
-using System.Threading;
+﻿using System.Net.WebSockets;
 
 namespace SpawnDev.WebFS
 {
-    public class WritableWebSocketStream : Stream, IDisposable
+    class WritableWebSocketStream : Stream, IDisposable
     {
         WebSocket WebSocket;
         public WritableWebSocketStream(WebSocket webSocket)

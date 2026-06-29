@@ -7,7 +7,7 @@ namespace SpawnDev.WebFS.MessagePack
     /// <summary>
     /// Represents an unspecified data structure represented by a ReadOnlySequence&lt;byte>
     /// </summary>
-    public class MessagePackElement
+    public class MessagePackElement : IMessagePackElement
     {
         /// <summary>
         /// MessagePackElement MessagePack options.<br/>
@@ -18,10 +18,25 @@ namespace SpawnDev.WebFS.MessagePack
         public static MessagePackSerializerOptions Options { get; }
         static MessagePackElement()
         {
+            // The goal of the code below is to allow compatiblity between the .Net MessagePack and the JS MessagePack
             Options = MessagePackSerializerOptions.Standard.WithResolver(CompositeResolver.Create
             (
+                // 1. Maintain your custom wrapper element definitions first
                 MessagePackElementResolver.Instance,
-                ContractlessStandardResolver.Instance,
+
+                // 2. Intercept numbers/enums from JS and force float64 -> int/long conversion
+                FlexibleNumberResolver.Instance,
+
+                // 3. Intercepts standard collections (like object[] arrays) early, allowing 
+                // the elements inside to evaluate independently instead of crashing on System.Object.
+                DynamicGenericResolver.Instance,
+
+                // 4. Generates map formatters for clean C# classes dynamically.
+                // It works like JSON, processes inheritance hierarchies (FindFilesResult), 
+                // and maps types like Temp1 and Temp2 cleanly.
+                DynamicContractlessObjectResolver.Instance,
+
+                // 5. Default structural mapping fallback for base components
                 StandardResolver.Instance
             ));
         }

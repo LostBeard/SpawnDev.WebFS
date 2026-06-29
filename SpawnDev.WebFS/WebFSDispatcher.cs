@@ -1,10 +1,13 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SpawnDev.BlazorJS;
 using SpawnDev.BlazorJS.WebWorkers;
+using SpawnDev.WebFS.DokanAsync;
 using SpawnDev.WebFS.MessagePack;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using TypeExtensions = SpawnDev.BlazorJS.TypeExtensions;
 
@@ -34,7 +37,7 @@ namespace SpawnDev.WebFS
         protected IServiceScope? ServiceProviderScope { get; private set; } = null;
         protected IServiceProvider ScopedServiceProvider { get; private set; }
         protected IServiceCollection ServiceDescriptors { get; private set; }
-        protected Dictionary<string, TaskCompletionSource<MessagePackList>> waitingResponse { get; private set; } = new Dictionary<string, TaskCompletionSource<MessagePackList>>();
+        protected Dictionary<string, TaskCompletionSource<IMessagePackList>> waitingResponse { get; private set; } = new Dictionary<string, TaskCompletionSource<IMessagePackList>>();
         object waitingResponseLock = new object();
         protected bool InheritAttributes { get; set; } = true;
         /// <summary>
@@ -131,7 +134,7 @@ namespace SpawnDev.WebFS
         /// </summary>
         /// <param name="msg"></param>
         /// <returns></returns>
-        protected async Task HandleCall(MessagePackList msg)
+        protected async Task HandleCall(IMessagePackList msg)
         {
             {
                 try
@@ -161,14 +164,13 @@ namespace SpawnDev.WebFS
                                 await ReadyFlagResultReceived();
                                 if (!WhenReady.IsCompleted)
                                 {
-                                    Console.WriteLine("Ready set");
                                     WhenReadySource.TrySetResult();
                                     ReadyStateChanged?.Invoke(this);
                                 }
                             }
                             catch
                             {
-
+                                // continue
                             }
                             return;
                     }
@@ -208,7 +210,7 @@ namespace SpawnDev.WebFS
             var callError = await PreCallCheck(methodInfo, args);
             if (!string.IsNullOrEmpty(callError)) throw new Exception($"DispatchCall error: {callError}");
             object? retValue = null;
-            var methodInfoSerialized = SerializableMethodInfoSlim.SerializeMethodInfo(methodInfo);
+            var methodInfoSerialized = SerializableMethodInfoSlim2.SerializeMethodInfo(methodInfo);
             var serviceTypeName = TypeExtensions.GetFullName(serviceType);
             var msgId = Guid.NewGuid().ToString();
             var outArgs = await PreSerializeArgs(msgId, methodInfo, args);
@@ -216,18 +218,19 @@ namespace SpawnDev.WebFS
             var resultRequested = remoteCallableAttribute == null || !remoteCallableAttribute.NoReply;
             try
             {
-                SendCall(new object?[] 
-                { 
-                    resultRequested ? RemoteDispatcherMessageType.Call : RemoteDispatcherMessageType.Message, 
+                //var allArgs = 
+                SendCall(new object?[]
+                {
+                    resultRequested ? RemoteDispatcherMessageType.Call : RemoteDispatcherMessageType.Message,
                     msgId,
                     serviceTypeName,
-                    methodInfoSerialized, 
-                    outArgs 
-                });
+                    methodInfoSerialized,
+
+                }.Concat(outArgs).ToArray());
                 if (resultRequested)
                 {
-                    var tcs = new TaskCompletionSource<MessagePackList>();
-                    lock(waitingResponseLock)
+                    var tcs = new TaskCompletionSource<IMessagePackList>();
+                    lock (waitingResponseLock)
                         waitingResponse.Add(msgId, tcs);
                     var finalReturnType = methodInfo.GetFinalReturnType();
                     var ret = await tcs.Task;
@@ -438,7 +441,7 @@ namespace SpawnDev.WebFS
             }
         }
         protected Dictionary<string, List<Action>> RequestCleanup = new Dictionary<string, List<Action>>();
-        protected async Task<object?> PostDeserializeArgument(string msgId, MethodInfo methodInfo, ParameterInfo parameterInfo, bool isReturnValue, MessagePackList? callArgs, int paramIndex)
+        protected async Task<object?> PostDeserializeArgument(string msgId, MethodInfo methodInfo, ParameterInfo parameterInfo, bool isReturnValue, IMessagePackList? callArgs, int paramIndex)
         {
             var callArgsLength = callArgs?.Count ?? 0;
             var finalType = isReturnValue ? parameterInfo.ParameterType.AsyncReturnType() ?? parameterInfo.ParameterType : parameterInfo.ParameterType;
@@ -532,7 +535,7 @@ namespace SpawnDev.WebFS
             }
             return ret;
         }
-        protected async Task<object?[]> PostDeserializeArgs(string msgId, MethodInfo methodInfo, MessagePackList? callArgs)
+        protected async Task<object?[]> PostDeserializeArgs(string msgId, MethodInfo methodInfo, IMessagePackList? callArgs)
         {
             var methodParams = methodInfo.GetParameters();
             var ret = new object?[methodParams.Length];
@@ -545,7 +548,7 @@ namespace SpawnDev.WebFS
             }
             return ret;
         }
-        async Task HandleCall(MessagePackList msg, bool resultRequested)
+        async Task HandleCall(IMessagePackList msg, bool resultRequested)
         {
             object? instance = null;
             object? retValue = null;
@@ -557,7 +560,7 @@ namespace SpawnDev.WebFS
             RemoteCallableAttribute? remoteCallableAttr = null;
             ServiceDescriptor? info = null;
             // rebuild request MethodInfo and arguments
-            MessagePackList? argsPreDeser = null;
+            IMessagePackList? argsPreDeser = null;
             try
             {
                 msgId = msg.Shift<string>();
@@ -568,9 +571,33 @@ namespace SpawnDev.WebFS
                     goto SendResponse;
                 }
                 var serviceTypeName = msg.Shift<string>();
-                targetType = TypeExtensions.GetType(serviceTypeName);
                 var methodInfoSerialized = msg.Shift<string>();
-                methodInfo = SerializableMethodInfoSlim.DeserializeMethodInfo(methodInfoSerialized);
+#if DEBUG && false
+                Console.WriteLine($"serviceTypeName: {serviceTypeName}");
+#endif
+                // ----------- Below is to accomodate desktop using byte[] and browser using Uint8Array to allow bypassing unnecessary JS <-> .NBet data transfers -----------
+                // override the interface so the JS side can take advantage of the JS types
+                if (serviceTypeName == "SpawnDev.WebFS.DokanAsync.IAsyncDokanOperations")
+                {
+                    serviceTypeName = "SpawnDev.WebFS.DokanAsync.IAsyncDokanOperationsJS";
+                    targetType = TypeExtensions.GetType(serviceTypeName);
+                    if (targetType == null)
+                    {
+                        serviceTypeName = "SpawnDev.WebFS.DokanAsync.IAsyncDokanOperations";
+                    }
+                    else
+                    {
+                        methodInfoSerialized = methodInfoSerialized.Replace("System.Byte[]", "SpawnDev.BlazorJS.JSObjects.Uint8Array");
+                        methodInfoSerialized = Regex.Replace(methodInfoSerialized, @"\bSpawnDev\.WebFS\.DokanAsync\.IAsyncDokanOperations\b", "SpawnDev.WebFS.DokanAsync.IAsyncDokanOperationsJS");
+                    }
+                }
+                targetType ??= TypeExtensions.GetType(serviceTypeName);
+#if DEBUG && false
+                Console.WriteLine($"methodInfoSerialized: {methodInfoSerialized}");
+                //Console.WriteLine($"readFile: {readFile}");
+                //Console.WriteLine($"writeFile: {writeFile}");
+#endif
+                methodInfo = SerializableMethodInfoSlim2.DeserializeMethodInfo(methodInfoSerialized);
                 if (methodInfo == null)
                 {
                     retError = "HandleCallError: Method not found";
@@ -580,7 +607,15 @@ namespace SpawnDev.WebFS
                 // locate info about the type being called
                 info = ServiceDescriptors.FindServiceDescriptors(targetType)!.FirstOrDefault();
                 // what is left in `msg` is the call arguments
-                argsPreDeser = msg.Shift<MessagePackList>();
+                //if (msg is MessagePackListJS)
+                //{
+                //    argsPreDeser = msg.Shift<MessagePackListJS>();
+                //}
+                //else
+                //{
+                //    argsPreDeser = msg.Shift<MessagePackList>();
+                //}
+                argsPreDeser = msg;
                 args = argsPreDeser == null ? null : await PostDeserializeArgs(msgId, methodInfo, argsPreDeser);
             }
             catch (Exception ex)
@@ -661,7 +696,7 @@ namespace SpawnDev.WebFS
                 StartRequestCleanup(msgId!);
             }
         }
-        void HandleReply(MessagePackList? msg)
+        void HandleReply(IMessagePackList? msg)
         {
             if (msg == null) return;
             var msgId = msg.Shift<string>();
@@ -684,14 +719,14 @@ namespace SpawnDev.WebFS
             var ret = new Exception(exception);
             return ret;
         }
-        protected void AddDynamicCallable(string msgId, string key, Func<MessagePackList, Task> handler)
+        protected void AddDynamicCallable(string msgId, string key, Func<IMessagePackList, Task> handler)
         {
             AddDynamicCallable(key, handler);
             OnRequestCleanup(msgId, () => RemoveDynamicHandler(key));
         }
-        protected void AddDynamicCallable(string key, Func<MessagePackList, Task> handler) => DynamicCallables.Add(key, handler);
+        protected void AddDynamicCallable(string key, Func<IMessagePackList, Task> handler) => DynamicCallables.Add(key, handler);
         protected bool RemoveDynamicHandler(string key) => DynamicCallables.Remove(key);
-        protected Dictionary<string, Func<MessagePackList, Task>> DynamicCallables = new Dictionary<string, Func<MessagePackList, Task>>();
+        protected Dictionary<string, Func<IMessagePackList, Task>> DynamicCallables = new Dictionary<string, Func<IMessagePackList, Task>>();
         protected static Action<T0> CreateTypedActionT1<T0>(Action<object?[]> arg) => new Action<T0>((t0) => arg(new object[] { t0 }));
         protected static Action<T0, T1> CreateTypedActionT2<T0, T1>(Action<object?[]> arg) => new Action<T0, T1>((t0, t1) => arg(new object[] { t0, t1 }));
         protected static Action<T0, T1, T2> CreateTypedActionT3<T0, T1, T2>(Action<object?[]> arg) => new Action<T0, T1, T2>((t0, t1, t2) => arg(new object[] { t0, t1 }));
